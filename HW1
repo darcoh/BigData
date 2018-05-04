@@ -1,0 +1,26 @@
+setwd("C:/Users/user/Desktop/Dataset")
+list.files()
+housing <- read.csv("housing.csv",header = T)
+names(housing)
+nrow(housing)
+ncol(housing)
+summary(housing)
+mean(housing$SalePrice)
+summary(housing$SalePrice)
+#Quantiles
+quantile(housing$SalePrice, probs=c(0.95))
+quant <- seq(0,1,by=0.05)
+quantile(housing$SalePrice, probs=quant)
+#Adding a new variable to the dataset
+housing$SalePriceperYrSold <- housing$SalePrice/housing$YrSold
+mean(housing$SalePriceperYrSold)
+housing$LotareaperYrSold <- housing$LotArea/housing$YrSold
+mean(housing$LotareaperYrSold)
+cor(housing$LotArea, housing$SalePrice)
+a <- table(housing$SaleCondition)
+print (a)
+table(housing$SaleCondition,housing$YrSold)
+HousingAfter1980= subset(housing,housing$YearBuilt>1980)
+cor(HousingAfter1980$LotArea, HousingAfter1980$SalePrice)
+NonNA=(subset(housing, housing$LotFrontage!= "NA")
+mean(NonNA$LotFrontage)
