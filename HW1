@@ -1,27 +1,60 @@
-setwd("C:/Users/user/Desktop/Dataset");
-//some note
+#--------------------------------------------------------
+#----------------General Look----------------------------
+#--------------------------------------------------------
+setwd("Data"); #local data folder
 list.files()
 housing <- read.csv("housing.csv",header = T)
+housing_rows = nrow(housing);
+housing_cols = ncol(housing);
+sprintf("there are %d rows and %d columns",housing_rows,housing_cols);
 names(housing)
-nrow(housing)
-ncol(housing)
 summary(housing)
+#--------------------------------------------------------
+#------------------Exploring SalePrice-------------------
+#--------------------------------------------------------
 mean(housing$SalePrice)
 summary(housing$SalePrice)
-#Quantiles
 quantile(housing$SalePrice, probs=c(0.95))
 quant <- seq(0,1,by=0.05)
 quantile(housing$SalePrice, probs=quant)
-#Adding a new variable to the dataset
+by(housing$SalePrice,housing$YrSold,mean); //Itamar: I added this funcion instead the rest of the code
+      |
+      |
+#Adding a new variable to the dataset 
 housing$SalePriceperYrSold <- housing$SalePrice/housing$YrSold
 mean(housing$SalePriceperYrSold)
+
+#--------------------------------------------------------
+#------------------Exploring LotArea---------------------
+#--------------------------------------------------------
+by(housing$LotArea,housing$YrSold,mean);#itamar: again as before
+      |
+      |
 housing$LotareaperYrSold <- housing$LotArea/housing$YrSold
 mean(housing$LotareaperYrSold)
+
 cor(housing$LotArea, housing$SalePrice)
-a <- table(housing$SaleCondition)
-print (a)
-table(housing$SaleCondition,housing$YrSold)
-HousingAfter1980= subset(housing,housing$YearBuilt>1980)
+
+#--------------------------------------------------------
+#------------------Exploring SaleCondition---------------
+#--------------------------------------------------------
+
+SalesCondition_Count_Table <- table(housing$SaleCondition)
+print(SalesCondition_Count_Table)
+table(housing$SaleCondition,housing$YrSold)   #two-way table of counts
+prop.table(table(housing$SaleCondition,housing$YrSold)) #two-way table of freqs
+
+HousingAfter1980= subset(housing,housing$YearBuilt>1980)  #creating table of houses after 1980
 cor(HousingAfter1980$LotArea, HousingAfter1980$SalePrice)
-NonNA=(subset(housing, housing$LotFrontage!= "NA")
-mean(NonNA$LotFrontage)
+
+#--------------------------------------------------------
+#------------------Exploring LotFrontage-----------------
+#--------------------------------------------------------
+Housing_NoNA_LotFrontage=(subset(housing, housing$LotFrontage!= "NA"))
+mean(Housing_NoNA_LotFrontage$LotFrontage)
+#another shorter option:  mean(housing$LotFrontage,na.rm = T)
+HousingAfter1980$LotFrontage_Has_NA = is.na(HousingAfter1980$LotFrontage);
+HousingAfter1980_LotFrontage_True = subset(HousingAfter1980, HousingAfter1980$LotFrontage_Has_NA==F);
+cor(HousingAfter1980_LotFrontage_True$SalePrice,HousingAfter1980_LotFrontage_True$LotFrontage)
+
+--------------------The End------------------------------
