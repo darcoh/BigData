@@ -1,4 +1,5 @@
 setwd("C:/Users/user/Desktop/Dataset");
+//some note
 list.files()
 housing <- read.csv("housing.csv",header = T)
 names(housing)
