@@ -56,49 +56,68 @@ summary(bike_train_clean$humidity)
 summary(bike_train_clean$windspeed)
 
 #avg count by hour
-hour_by_count_avg=as.data.frame(t(sapply(by(bike_train_clean$count,bike_train_clean$hour,mean), I)),row)
-names(hour_by_count_avg)= c("hour", "avg")
+hour_by_count_avg =aggregate(cbind(count) ~ hour , data = bike_train_clean, mean, na.rm = TRUE)
 print((hour_by_count_avg))
 
 #avg count by weekday
-weekday_by_count_avg=as.data.frame(t(sapply(by(bike_train_clean$count,bike_train_clean$weekday,mean), I)),col)
-names(weekday_by_count_avg)= c("weekday", "avg")
+weekday_by_count_avg =aggregate(cbind(count) ~ weekday , data = bike_train_clean, mean, na.rm = TRUE)
 print((weekday_by_count_avg))
 
+
 #avg count by month
-month_by_count_avg=as.data.frame(t(sapply(by(bike_train_clean$count,bike_train_clean$month,mean), I)),row)
-names(month_by_count_avg)= c("month", "avg")
-print((month_by_count_avg))
+month_by_count_avg =aggregate(cbind(count) ~ month , data = bike_train_clean, mean, na.rm = TRUE)
+print(month_by_count_avg)
+
+
+#avg count by workingday
+workingday_by_count_avg =aggregate(cbind(count) ~ workingday , data = bike_train_clean, mean, na.rm = TRUE)
+print(workingday_by_count_avg)
+
+#avg count by weather
+weather_by_count_avg =aggregate(cbind(count) ~ weather , data = bike_train_clean, mean, na.rm = TRUE)
+print(weather_by_count_avg)
+
+#avg count by season
+season_by_count_avg =aggregate(cbind(count) ~ season , data = bike_train_clean, mean, na.rm = TRUE)
+print(season_by_count_avg)
 
 #----------------------------data histograms-----------------------------------------------
 #important
+
+#count histograma
 ggplot(bike_train_clean)+aes(count)+
   geom_histogram(binwidth = 10);
 
-#not depending on tmp
+#temp histograma - not depending on tmp
 ggplot(bike_train_clean)+aes(temp)+
   geom_histogram(binwidth = 1);
 
+#atemp histograma - not depending on שtmp
 ggplot(bike_train_clean)+aes(atemp)+
   geom_histogram(binwidth = 1);
 
-#important - depends on velocity of the wind
+#windspeed histograma - important - depends on velocity of the wind
 ggplot(bike_train_clean)+aes(windspeed)+
   geom_histogram(binwidth = 1);
 
-#not important
+#huidity histograma - not important
 ggplot(bike_train_clean)+aes(humidity)+
   geom_histogram(binwidth = 1);
 
-names(bike_train_clean)
-#almost the same number of request during every season
+#season histogram - almost the same number of request during every season
 ggplot(bike_train_clean, aes(season)) + stat_count(color="blue",geom = "bar")
-#needs tp be avarged (taking also the holidays)
-ggplot(bike_train_clean, aes(workingday)) + stat_count(color="blue",geom = "bar")
+
+#workingday histograma 
+ggplot(bike_train_clean, aes(workingday)) + stat_count(color="blue",geom = "bar");
+
+#weather histograma
 ggplot(bike_train_clean, aes(weather)) + stat_count(color="blue",geom = "bar")
 
 
 #----------------------------data bar Plots-----------------------------------------------
+
+
+#season VS. count bar plot
 ggplot(bike_train_clean, aes(x=season, y=count)) + 
   geom_bar(stat="identity", width=.5, fill="tomato3") + 
   labs(title="Ordered Bar Chart", 
@@ -106,30 +125,29 @@ ggplot(bike_train_clean, aes(x=season, y=count)) +
   theme(axis.text.x = element_text(angle=65, vjust=0.6))
 
 
-ggplot(bike_train_clean, aes(x=workingday, y=count)) + 
-  geom_bar(stat="identity", width=.5, fill="blue") + 
-  labs(title="Ordered Bar Chart", 
-       subtitle="workingday Vs count") + 
-  theme(axis.text.x = element_text(angle=65, vjust=0.6))
-
+#weather VS. count bar plot
 ggplot(bike_train_clean, aes(x=weather, y=count)) + 
   geom_bar(stat="identity", width=.5, fill="green") + 
   labs(title="Ordered Bar Chart", 
        subtitle="weather Vs count") + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6))
 
+#hour VS. count bar plot
 ggplot(bike_train_clean, aes(x=hour, y=count)) + 
   geom_bar(stat="identity", width=.5, fill="orange") + 
   labs(title="Ordered Bar Chart", 
        subtitle="hour Vs count") + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6))
 
+
+#weekday VS. count bar plot
 ggplot(bike_train_clean, aes(x=weekday, y=count)) + 
-  geom_bar(stat="identity", width=.5, fill="gray") + 
+  geom_bar(stat="identity", width=.5, fill="pink") + 
   labs(title="Ordered Bar Chart", 
        subtitle="weekday Vs count") + 
   theme(axis.text.x = element_text(angle=65, vjust=0.6))
 
+#weekday VS. count bar plot
 ggplot(bike_train_clean, aes(x=month, y=count)) + 
   geom_bar(stat="identity", width=.5, fill="purple") + 
   labs(title="Ordered Bar Chart", 
@@ -146,66 +164,67 @@ avg_count_hour_by_month = aggregate(cbind(count) ~ hour + month , data = bike_tr
 sum_count_weekday_by_month = aggregate(cbind(count) ~ weekday + month , data = bike_train_clean, sum, na.rm = TRUE)
 avg_count_weekday_by_month = aggregate(cbind(count) ~ weekday + month , data = bike_train_clean, mean, na.rm = TRUE)
 
+#sum: hour VS. weekday VS. count
 ggplot(sum_count_hour_by_day, aes(weekday,hour, fill=count )) + 
   geom_tile(colour = "white") + 
   scale_fill_gradient(low="green", high="red") +
   labs(x="weekday: sunday - suterday",
        y="hour in the day: 00:00-23:00",
        title = "Time-Series Calendar Heatmap", 
-       subtitle="Bike Rental", 
+       subtitle="Total Bike Rental", 
        fill="Rents Count")
 
 
-
+#avg: hour VS. weekday VS. count
 ggplot(avg_count_hour_by_day, aes(weekday,hour, fill=count )) + 
   geom_tile(colour = "white") + 
   scale_fill_gradient(low="green", high="red") +
   labs(x="weekday: sunday - suterday",
        y="hour in the day: 00:00-23:00",
        title = "Time-Series Calendar Heatmap", 
-       subtitle="Bike Rental", 
+       subtitle="AVG Bike Rental", 
        fill="Rents Count")
 
-
+#sum: hour VS. month VS. count
 ggplot(sum_count_hour_by_month, aes(month,hour, fill=count )) + 
   geom_tile(colour = "white") + 
   scale_fill_gradient(low="green", high="red") +
   labs(x="Month",
        y="hour in the day: 00:00-23:00",
        title = "Time-Series Calendar Heatmap", 
-       subtitle="Bike Rental", 
+       subtitle="Total Bike Rental", 
        fill="Rents Count")
 
 
-
+#avg: hour VS. month VS. count
 ggplot(avg_count_hour_by_month, aes(month,hour, fill=count )) + 
   geom_tile(colour = "white") + 
   scale_fill_gradient(low="green", high="red") +
   labs(x="month",
        y="hour in the day: 00:00-23:00",
        title = "Time-Series Calendar Heatmap", 
-       subtitle="Bike Rental", 
+       subtitle="AVG Bike Rental", 
        fill="Rents Count")
 
-
+#sum: month VS. weekday VS. count
 ggplot(sum_count_weekday_by_month, aes(month,weekday, fill=count )) + 
   geom_tile(colour = "white") + 
   scale_fill_gradient(low="green", high="red") +
   labs(x="Month",
        y="weekday",
        title = "Time-Series Calendar Heatmap", 
-       subtitle="Bike Rental", 
+       subtitle="Total Bike Rental", 
        fill="Rents Count")
 
 
-
+#avg: month VS. weekday VS. count
 ggplot(avg_count_weekday_by_month, aes(month,weekday, fill=count )) + 
   geom_tile(colour = "white") + 
   scale_fill_gradient(low="green", high="red") +
   labs(x="month",
        y="weekday",
        title = "Time-Series Calendar Heatmap", 
-       subtitle="Bike Rental", 
+       subtitle="AVG Bike Rental", 
        fill="Rents Count")
 
 
@@ -216,24 +235,29 @@ avg_count_season_hour = aggregate(cbind(count) ~ hour +season , data = bike_trai
 sum_count_season_weekday = aggregate(cbind(count) ~ weekday +season , data = bike_train_clean, sum, na.rm = TRUE)
 avg_count_season_weekday = aggregate(cbind(count) ~ weekday +season , data = bike_train_clean, mean, na.rm = TRUE)
 
-print(sum_count_season_hour)
-
-# plot
+# sum-count area-plot: season VS. hour vS. count
 ggplot() + geom_area(aes(y = count, x = hour, fill = season), data = sum_count_season_hour,
                      stat="identity")
+
+# avg-count area-plot: season VS. hour vS. count
 ggplot() + geom_area(aes(y = count, x = hour, fill = season), data = avg_count_season_hour,
                      stat="identity")
+
+# sum-count area-plot: season VS. weekday vS. count
 ggplot() + geom_area(aes(y = count, x = weekday, fill = season), data = sum_count_season_weekday,
                      stat="identity")
+
+# avg-count area-plot: season VS. weekday vS. count
 ggplot() + geom_area(aes(y = count, x = weekday, fill = season), data = avg_count_season_weekday,
                      stat="identity")
 
+#scattered-plot: windspeed
 ggplot(bike_train_clean, aes(x=windspeed, y=count)) + 
   geom_point(aes(col=season)) +   # draw points
   xlim(c(0, 100)) + 
   ylim(c(0, 800)) 
 
-
+#scattered-plot: hunidity
 ggplot(bike_train_clean, aes(x=humidity, y=count)) + 
   geom_point(aes(col=season)) +   # draw points
   xlim(c(0, 100)) + 
@@ -241,7 +265,6 @@ ggplot(bike_train_clean, aes(x=humidity, y=count)) +
 
 
 
-typeof(bike_train_clean$time)
 #-------------------------------------Section 2------------------------------------
 #-------------------------------------Linear Regression------------------------------------
 #Run a linear regression that explains count variable with temp variable
