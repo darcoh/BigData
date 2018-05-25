@@ -22,7 +22,6 @@ bike_train$date = date(bike_train$datetime)
 bike_train$year = year(bike_train$datetime)
 bike_train$month = month(bike_train$datetime)
 bike_train$weekday =  wday(bike_train$datetime)
-bike_train$time =  time(bike_train$datetime)
 bike_train$hour =  hour(bike_train$datetime)
 
 #--------------converting features to categorial---------------------------
@@ -265,26 +264,27 @@ bike_train_clean_validation = bike_train_clean[-train,] # creats a new dataset o
 print (train)
 
 #-----------------------------------------------------------------------------------------
+typeof(hour)
+print(bike_train_clean_train$hour)
 
-unclass(time)
-typeof(time)
 #Estimate a model with count as dep. Variable and temp and hour are the indep. variables
 
-multi_reg = lm(count~temp+factor(time), data=bike_train_clean_train);
+multi_reg = lm(count~temp+hour, data=bike_train_clean_train);
 summary(multi_reg)
 
-ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = time  )  + 
+ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = hour  )  + 
   geom_point(alpha=0.6)+ 
   geom_line(mapping = aes(y=predict(multi_reg)),size=1)+
   labs(title="temp against count",x="temp",y="count")
-# all lines have the same slope
 
-multi_reg = lm(count~temp+factor(time), data=bike_train_clean_train);
+bike_train_clean_train$hour_categor = factor(bike_train_clean_train$hour)
+
+multi_reg_categorical= lm(count~temp+hour_categor, data=bike_train_clean_train);
 summary(multi_reg)
 
-ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = time  )  + 
+ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = hour_categor  )  + 
   geom_point(alpha=0.6)+ 
-  geom_line(mapping = aes(y=predict(multi_reg)),size=1)+
+  geom_line(mapping = aes(y=predict(multi_reg_categorical)),size=1)+
   labs(title="temp against count",x="temp",y="count")
 
 
@@ -298,32 +298,48 @@ summary(multi_reg_interact)
 ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color=time)  + 
   geom_point(alpha=0.6)+ 
   geom_line(mapping = aes(y=predict(multi_reg_interact)),size=1)
-#each line has a different slope
 
 #a new categorical variable of period in the day
-bike_train_clean_train$daytime = NA
-bike_train_clean_train$time = ifelse(bike_train_clean_train$time>=06 & bike_train_clean_train$time<=11,"morning", bike_train_clean_train$time)
-bike_train_clean_train$time = ifelse(bike_train_clean_train$time>=12 & bike_train_clean_train$time<=17,"noon",bike_train_clean_train$time)
-bike_train_clean_train$time = ifelse(bike_train_clean_train$time>=18 & bike_train_clean_train$time<=23,"evening",bike_train_clean_train$time)
-bike_train_clean_train$time = ifelse(bike_train_clean_train$time>=0 & bike_train_clean_train$time<=5,"night",bike_train_clean_train$time)
+bike_train_clean_train$daytime_categor = NA
+bike_train_clean_train$daytime_categor = ifelse(bike_train_clean_train$hour>=6 & bike_train_clean_train$hour<=11,"morning", bike_train_clean_train$daytime_categor)
+bike_train_clean_train$daytime_categor = ifelse(bike_train_clean_train$hour>=12 & bike_train_clean_train$hour<=17,"noon",bike_train_clean_train$daytime_categor)
+bike_train_clean_train$daytime_categor = ifelse(bike_train_clean_train$hour>=18 & bike_train_clean_train$hour<=23,"evening",bike_train_clean_train$daytime_categor)
+bike_train_clean_train$daytime_categor = ifelse(bike_train_clean_train$hour>=0 & bike_train_clean_train$hour<=5,"night",bike_train_clean_train$daytime_categor)
+
+bike_train_clean_validation$daytime_categor = NA
+bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=6 & bike_train_clean_validation$hour<=11,"morning", bike_train_clean_validation$daytime_categor)
+bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=12 & bike_train_clean_validation$hour<=17,"noon",bike_train_clean_validation$daytime_categor)
+bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=18 & bike_train_clean_validation$hour<=23,"evening",bike_train_clean_validation$daytime_categor)
+bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=0 & bike_train_clean_validation$hour<=5,"night",bike_train_clean_validation$daytime_categor)
+
 
 #linear regression with time as a factor variabla
-multi_reg_interact = lm(count~temp*time, data=bike_train_clean_train)
+multi_reg_daytime = lm(count~temp+daytime_categor, data=bike_train_clean_train)
 summary(multi_reg_interact)
 
-ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color=time)  + 
+ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color=daytime_categor)  + 
   geom_point(alpha=0.6)+ 
-  geom_line(mapping = aes(y=predict(multi_reg_interact)),size=1)
+  geom_line(mapping = aes(y=predict(multi_reg_daytime)),size=1)
 
+#linear regression with time as a factor variabla and interaction
+multi_reg_daytime_interaction = lm(count~temp*daytime_categor, data=bike_train_clean_train)
+summary(multi_reg_interact)
+
+ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color=daytime_categor)  + 
+  geom_point(alpha=0.6)+ 
+  geom_line(mapping = aes(y=predict(multi_reg_daytime_interaction)),size=1)
 
 #Checking which model has the best training R^2
-
-
-summary(multi_reg)$r.squared
-summary(multi_reg_interact)$r.squared
+summary(multi_reg_daytime)$r.squared
+summary(multi_reg_daytime_interaction)$r.squared
 # the fact that one model has a better r.squared doesn't mean anything if this model has more variables
 
-validation_sse<-sum((predict(object =multi_reg,newdata =housing_validation ) - housing_validation$SalePrice)^2)
-validation_sse_interact<-sum((predict(object =multi_reg_interact,newdata =housing_validation ) - housing_validation$SalePrice)^2)
+validation_sse<-sum((predict(object =multi_reg_daytime,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
+validation_sse_interact<-sum((predict(object =multi_reg_daytime_interaction,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
 validation_sse_interact>validation_sse
-# we got that the model with interaction gives better sse, so we will choose him over the model without the interaction
+print(validation_sse_interact)
+print(validation_sse)
+# we got that the model without interaction gives bigger sse, so we will choose him over the model with the interaction
+
+#---------------------------------------c--------------------------------------------------
+kjhfhv
