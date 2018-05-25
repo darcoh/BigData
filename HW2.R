@@ -1,12 +1,10 @@
 install.packages('ggplot2')
 install.packages('lubridate')
-install.packages('plotly')
 
 
 
 library(ggplot2)
 library(lubridate)
-library(plotly)
 theme_set(theme_bw())
 
 
