@@ -383,6 +383,7 @@ print(validation_sse)
 #-------------------------------------Section 3-----------------------------------------------
 #-------------------------------------Final Model---------------------------------------
 # linear regression with one variable
+
 #creating new features - realtive humidity, australian atemp and converting categorial to dummies
 bike_train_clean_train$relative_humidity = bike_train_clean_train$humidity/100;
 bike_train_clean_train$australian_atemp = bike_train_clean_train$temp+0.33*bike_train_clean_train$relative_humidity*6.105*exp(((17.27*bike_train_clean_train$temp)/(237.7+bike_train_clean_train$temp)))+0.7*bike_train_clean_train$windspeed-4;
@@ -390,7 +391,6 @@ bike_train_clean_train$australian_atemp = bike_train_clean_train$temp+0.33*bike_
 bike_train_clean_train$normal_australian_atemp = ((bike_train_clean_train$australian_atemp-mean(bike_train_clean_train$australian_atemp))/(max(bike_train_clean_train$australian_atemp)-min(bike_train_clean_train$australian_atemp)));
 bike_train_clean_train$normal_atemp = ((bike_train_clean_train$atemp-mean(bike_train_clean_train$atemp))/(max(bike_train_clean_train$atemp)-min(bike_train_clean_train$atemp)));
 bike_train_clean_train$normal_avg_atemp = (bike_train_clean_train$normal_australian_atemp+bike_train_clean_train$normal_atemp)/2;
-
 bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$season,sep = "_"));
 bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$weather,sep = "_"));
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_spring"] = "spring";
@@ -403,17 +403,41 @@ colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_c
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Very Bad"] = "Very_Bad";
 
 ##let's watch the correletion between the variables in order to see which weights to put
-cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall", "Good", "Normal","Bad","Very_Bad","normal_atemp","normal_australian_atemp","normal_avg_atemp")]
+cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall", "Good", "Normal","Bad","Very_Bad","normal_atemp","normal_australian_atemp","normal_avg_atemp","temp","humidity","windspeed")]
 cor(cor_data)
 
 #creating calculated weighted variable based on the correlation matrix
-bike_train_clean_train$weighted_final_var = bike_train_clean_train$normal_avg_atemp*2+bike_train_clean_train$spring*0.5
-                                            +bike_train_clean_train$summer*0.75 +bike_train_clean_train$fall*0.1
-                                            +bike_train_clean_train$winter*0.8
-                                            +bike_train_clean_train$Good*0.6++bike_train_clean_train$Normal*0.05
-                                            +bike_train_clean_train$Bad*0.75++bike_train_clean_train$Very_Bad*0.7
+bike_train_clean_train$weighted_final_var = (bike_train_clean_train$normal_avg_atemp)+ (bike_train_clean_train$Good*1.07+bike_train_clean_train$Normal+bike_train_clean_train$Bad+bike_train_clean_train$Very_Bad)
+#+bike_train_clean_train$spring*0.5+bike_train_clean_train$summer*0.75 +bike_train_clean_train$fall*0.1+bike_train_clean_train$winter*0.8+;
+weigh_list = c(0.5);
+final_regression = lm(count ~ weighted_final_var, data=bike_train_clean_train weights=c(0.5))
+summary(final_regression)
 
-final_regression = lm(count ~ weighted_final_var, data=bike_train_clean_train)
+ggplot(data=bike_train_clean_train)+aes(x=weighted_final_var,y=count,color=weather)  + 
+  geom_point(alpha=0.6)+ 
+  geom_line(mapping = aes(y=predict(final_regression)),size=1)
+##--------------------------columns for validation-------------------
+#again but for the validation data
+#creating new features - realtive humidity, australian atemp and converting categorial to dummies
+bike_train_clean_validation$relative_humidity = bike_train_clean_validation$humidity/100;
+bike_train_clean_validation$australian_atemp = bike_train_clean_validation$temp+0.33*bike_train_clean_validation$relative_humidity*6.105*exp(((17.27*bike_train_clean_validation$temp)/(237.7+bike_train_clean_validation$temp)))+0.7*bike_train_clean_validation$windspeed-4;
+#normalizing austrlaian temp using method: (value-mean(value)/max(value)-min(value))
+bike_train_clean_validation$normal_australian_atemp = ((bike_train_clean_validation$australian_atemp-mean(bike_train_clean_validation$australian_atemp))/(max(bike_train_clean_validation$australian_atemp)-min(bike_train_clean_validation$australian_atemp)));
+bike_train_clean_validation$normal_atemp = ((bike_train_clean_validation$atemp-mean(bike_train_clean_validation$atemp))/(max(bike_train_clean_validation$atemp)-min(bike_train_clean_validation$atemp)));
+bike_train_clean_validation$normal_avg_atemp = (bike_train_clean_validation$normal_australian_atemp+bike_train_clean_validation$normal_atemp)/2;
+
+bike_train_clean_validation = cbind(bike_train_clean_validation, dummy(bike_train_clean_validation$season,sep = "_"));
+bike_train_clean_validation = cbind(bike_train_clean_validation, dummy(bike_train_clean_validation$weather,sep = "_"));
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_spring"] = "spring";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_winter"] = "winter";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_summer"] = "summer";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_fall"] = "fall";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Good"] = "Good";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Normal"] = "Normal";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Bad"] = "Bad";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Very Bad"] = "Very_Bad";
+
+#************************************************************
 
 
 '''
