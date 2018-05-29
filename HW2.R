@@ -411,10 +411,9 @@ cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall
 cor(cor_data)
 
 #creating calculated weighted variable based on the correlation matrix
-bike_train_clean_train$weighted_final_var = (bike_train_clean_train$normal_avg_atemp)+ (bike_train_clean_train$Good*1.07+bike_train_clean_train$Normal+bike_train_clean_train$Bad+bike_train_clean_train$Very_Bad)
-#+bike_train_clean_train$spring*0.5+bike_train_clean_train$summer*0.75 +bike_train_clean_train$fall*0.1+bike_train_clean_train$winter*0.8+;
-weigh_list = c(0.5);
-final_regression = lm(count ~ weighted_final_var, data=bike_train_clean_train weights=c(0.5))
+bike_train_clean_train$agg_climate = (2*bike_train_clean_train$normal_avg_atemp)+ (bike_train_clean_train$Good+bike_train_clean_train$Normal+bike_train_clean_train$Bad+bike_train_clean_train$Very_Bad)+bike_train_clean_train$spring+bike_train_clean_train$summer +bike_train_clean_train$fall+bike_train_clean_train$winter;
+
+final_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(weighted_final_var^2))
 summary(final_regression)
 
 ggplot(data=bike_train_clean_train)+aes(x=weighted_final_var,y=count,color=weather)  + 
