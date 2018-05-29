@@ -28,6 +28,13 @@ bike_train$month = month(bike_train$datetime)
 bike_train$weekday =  wday(bike_train$datetime)
 bike_train$hour =  hour(bike_train$datetime)
 
+bike_test$datetime = as.POSIXlt(bike_test$datetime, tz = "", format="%Y-%m-%d %H:%M:%S");
+bike_test$date = date(bike_test$datetime)
+bike_test$year = year(bike_test$datetime)
+bike_test$month = month(bike_test$datetime)
+bike_test$weekday =  wday(bike_test$datetime)
+bike_test$hour =  hour(bike_test$datetime)
+
 #--------------converting features to categorial---------------------------
 
 bike_train$season = factor(bike_train$ season, label = c("winter", "spring", "summer", "fall"))
@@ -35,20 +42,34 @@ bike_train$holiday = factor(bike_train$ holiday, label = c("not holiday", "holid
 bike_train$workingday = factor(bike_train$ workingday, labels = c("not workingday", "workingday"))
 bike_train$weather = factor(bike_train$ weather, labels = c("Good", "Normal", "Bad", "Very Bad"))
 
+bike_test$season = factor(bike_test$ season, label = c("winter", "spring", "summer", "fall"))
+bike_test$holiday = factor(bike_test$ holiday, label = c("not holiday", "holiday"))
+bike_test$workingday = factor(bike_test$ workingday, labels = c("not workingday", "workingday"))
+bike_test$weather = factor(bike_test$ weather, labels = c("Good", "Normal", "Bad"))
 
 #-------------------------Winsorizing & cleaning the data--------------------------
 #precent_value_1 <- quantile(bike_train$count,probs =0.01) - for redundency
 precent_value_99 = quantile(bike_train$count,probs =0.99)
 
+precent_value_99 = quantile(bike_test$count,probs =0.99)
+
 #dropping rows with extreme values
 # set a new table only with the rows where count are between 1% and 99% quantile
 bike_train_clean = bike_train[bike_train$count<precent_value_99,]
+
+bike_test_clean = bike_test[bike_test$count<precent_value_99,]
+
 #proving there are no Na/Nan values
 ind_rows = rowSums(is.na(bike_train_clean)) == ncol(bike_train_clean)
 ind_col = colSums(is.na(bike_train_clean)) == nrow(bike_train_clean)
 summary(ind_rows)
 summary(ind_col)
 
+
+ind_rows = rowSums(is.na(bike_test_clean)) == ncol(bike_test_clean)
+ind_col = colSums(is.na(bike_test_clean)) == nrow(bike_test_clean)
+summary(ind_rows)
+summary(ind_col)
 
 #------------------------------------------------------------------------------------------
 #----------------------------statistial conclusions-----------------------------------------------------
@@ -302,7 +323,6 @@ bike_train_clean_train = bike_train_clean[train,] # creats a new dataset only wi
 bike_train_clean_validation = bike_train_clean[-train,] # creats a new dataset only with the rows that were not sampaled
 
 print (train)
-
 #-----------------------------------------------------------------------------------------
 
 #Estimate a model with count as dep. Variable and temp and hour are the indep. variables
@@ -380,7 +400,6 @@ print(validation_sse_daytime)
 print(validation_sse)
 print(validation_sse_categor)
 
-# we got that the model without interaction gives bigger sse, so we will choose him over the model with the interaction
 
 #---------------------------------------c--------------------------------------------------
 
@@ -466,6 +485,7 @@ fviz_screeplot(famd)
 get_famd_var(famd)
 # Plot of variables
 fviz_famd_var(famd, repel = TRUE)
+
 # Contribution to the first dimension
 fviz_contrib(famd, "var", axes = 1)
 # Contribution to the second dimension
@@ -473,3 +493,7 @@ fviz_contrib(famd, "var", axes = 2)
 fviz_famd_var(famd, "quanti.var", repel = TRUE,col.var = "black")
 fviz_famd_var(famd, "quanti.var", col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),repel = TRUE)
 
+#------------------------------------Predict and ESS-------------------------------------------------
+count_predict = predict(object = ac_h_regression, newdata = bike_test_clean)
+
+predict_sse=sum((predict(object = ac_h_regression, newdata = bike_test_clean) - bike_test_clean$count_predict)^2)
