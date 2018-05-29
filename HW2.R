@@ -1,10 +1,14 @@
 install.packages('ggplot2')
 install.packages('lubridate')
-
+install.packages(c("FactoMineR", "factoextra"));
+install.packages("dummies");
 
 
 library(ggplot2)
 library(lubridate)
+library("FactoMineR")
+library("factoextra");
+library(dummies)
 theme_set(theme_bw())
 
 
@@ -263,12 +267,24 @@ ggplot(bike_train_clean, aes(x=humidity, y=count)) +
   xlim(c(0, 100)) + 
   ylim(c(0, 800))
 
+#scattered-plot: temp
+ggplot(bike_train_clean, aes(x=temp, y=count)) + 
+  geom_point(aes(col=season)) +   # draw points
+  xlim(c(0, 100)) + 
+  ylim(c(0, 800))
 
 
-#-------------------------------------Section 2------------------------------------
-#-------------------------------------Linear Regression------------------------------------
-#Run a linear regression that explains count variable with temp variable
-reg_temp = lm(count~temp, data=bike_train_clean ) #creating a liner regression (between count and temp) object
+#scattered-plot: atemp
+ggplot(bike_train_clean, aes(x=atemp, y=count)) + 
+  geom_point(aes(col=season)) +   # draw points
+  xlim(c(0, 100)) + 
+  ylim(c(0, 800))
+
+#-------------------------------------Section 2-----------------------------------------------
+#-------------------------------------Linear Regression---------------------------------------
+
+#creating a liner regression (between count and temp) object
+reg_temp = lm(count~temp, data=bike_train_clean ) 
 summary(reg_temp)# shows the summary of the results received
 coef(reg_temp) # shows the Coefficients estimates of the regression
 
@@ -287,8 +303,6 @@ bike_train_clean_validation = bike_train_clean[-train,] # creats a new dataset o
 print (train)
 
 #-----------------------------------------------------------------------------------------
-typeof(hour)
-print(bike_train_clean_train$hour)
 
 #Estimate a model with count as dep. Variable and temp and hour are the indep. variables
 
@@ -365,4 +379,69 @@ print(validation_sse)
 # we got that the model without interaction gives bigger sse, so we will choose him over the model with the interaction
 
 #---------------------------------------c--------------------------------------------------
-kjhfhv
+
+#-------------------------------------Section 3-----------------------------------------------
+#-------------------------------------Final Model---------------------------------------
+# linear regression with one variable
+#creating new features - realtive humidity, australian atemp and converting categorial to dummies
+bike_train_clean_train$relative_humidity = bike_train_clean_train$humidity/100;
+bike_train_clean_train$australian_atemp = bike_train_clean_train$temp+0.33*bike_train_clean_train$relative_humidity*6.105*exp(((17.27*bike_train_clean_train$temp)/(237.7+bike_train_clean_train$temp)))+0.7*bike_train_clean_train$windspeed-4;
+#normalizing austrlaian temp using method: (value-mean(value)/max(value)-min(value))
+bike_train_clean_train$normal_australian_atemp = ((bike_train_clean_train$australian_atemp-mean(bike_train_clean_train$australian_atemp))/(max(bike_train_clean_train$australian_atemp)-min(bike_train_clean_train$australian_atemp)));
+bike_train_clean_train$normal_atemp = ((bike_train_clean_train$atemp-mean(bike_train_clean_train$atemp))/(max(bike_train_clean_train$atemp)-min(bike_train_clean_train$atemp)));
+bike_train_clean_train$normal_avg_atemp = (bike_train_clean_train$normal_australian_atemp+bike_train_clean_train$normal_atemp)/2;
+
+bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$season,sep = "_"));
+bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$weather,sep = "_"));
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_spring"] = "spring";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_winter"] = "winter";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_summer"] = "summer";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_fall"] = "fall";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Good"] = "Good";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Normal"] = "Normal";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Bad"] = "Bad";
+colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Very Bad"] = "Very_Bad";
+
+##let's watch the correletion between the variables in order to see which weights to put
+cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall", "Good", "Normal","Bad","Very_Bad","normal_atemp","normal_australian_atemp","normal_avg_atemp")]
+cor(cor_data)
+
+#creating calculated weighted variable based on the correlation matrix
+bike_train_clean_train$weighted_final_var = bike_train_clean_train$normal_avg_atemp*2+bike_train_clean_train$spring*0.5
+                                            +bike_train_clean_train$summer*0.75 +bike_train_clean_train$fall*0.1
+                                            +bike_train_clean_train$winter*0.8
+                                            +bike_train_clean_train$Good*0.6++bike_train_clean_train$Normal*0.05
+                                            +bike_train_clean_train$Bad*0.75++bike_train_clean_train$Very_Bad*0.7
+
+final_regression = lm(count ~ weighted_final_var, data=bike_train_clean_train)
+
+
+'''
+AT = Ta + 0.33×e − 0.70×ws − 4.00
+Ta = Dry bulb temperature (°C)
+
+e = Water vapour pressure (hPa) [humidity]
+
+ws = Wind speed (m/s) at an elevation of 10 meters
+
+The vapour pressure can be calculated from the temperature and relative humidity using the equation: 
+
+e = rh / 100 × 6.105 × exp ( 17.27 × Ta / ( 237.7 + Ta ) )
+'''
+
+#-------------------------------------Final Model - FAMD---------------------------------------
+
+bike_train_clean_train_famd = bike_train_clean_train[,c("weather","season","windspeed","humidity","temp","atemp")]
+famd=FAMD(bike_train_clean_train_famd, ncp = 6, sup.var = NULL, ind.sup = NULL, graph = TRUE);
+print(get_eigenvalue(famd))
+fviz_screeplot(famd)
+get_famd_var(famd)
+# Plot of variables
+fviz_famd_var(famd, repel = TRUE)
+# Contribution to the first dimension
+fviz_contrib(famd, "var", axes = 1)
+# Contribution to the second dimension
+fviz_contrib(famd, "var", axes = 2)
+fviz_famd_var(famd, "quanti.var", repel = TRUE,col.var = "black")
+fviz_famd_var(famd, "quanti.var", col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),repel = TRUE)
+
