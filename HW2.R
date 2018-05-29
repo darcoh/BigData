@@ -391,9 +391,9 @@ print(validation_sse_categor)
 #creating new features - realtive humidity, australian atemp and converting categorial to dummies
 bike_train_clean_train$relative_humidity = bike_train_clean_train$humidity/100;
 bike_train_clean_train$australian_atemp = bike_train_clean_train$temp+0.33*bike_train_clean_train$relative_humidity*6.105*exp(((17.27*bike_train_clean_train$temp)/(237.7+bike_train_clean_train$temp)))+0.7*bike_train_clean_train$windspeed-4;
-#normalizing austrlaian temp using method: (value-mean(value)/max(value)-min(value))
-bike_train_clean_train$normal_australian_atemp = ((bike_train_clean_train$australian_atemp-mean(bike_train_clean_train$australian_atemp))/(max(bike_train_clean_train$australian_atemp)-min(bike_train_clean_train$australian_atemp)));
-bike_train_clean_train$normal_atemp = ((bike_train_clean_train$atemp-mean(bike_train_clean_train$atemp))/(max(bike_train_clean_train$atemp)-min(bike_train_clean_train$atemp)));
+#normalizing austrlaian temp using method: (value-min(value)/max(value)-min(value))
+bike_train_clean_train$normal_australian_atemp = ((bike_train_clean_train$australian_atemp-min(bike_train_clean_train$australian_atemp))/(max(bike_train_clean_train$australian_atemp)-min(bike_train_clean_train$australian_atemp)));
+bike_train_clean_train$normal_atemp = ((bike_train_clean_train$atemp-min(bike_train_clean_train$atemp))/(max(bike_train_clean_train$atemp)-min(bike_train_clean_train$atemp)));
 bike_train_clean_train$normal_avg_atemp = (bike_train_clean_train$normal_australian_atemp+bike_train_clean_train$normal_atemp)/2;
 bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$season,sep = "_"));
 bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$weather,sep = "_"));
@@ -407,18 +407,31 @@ colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_c
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Very Bad"] = "Very_Bad";
 
 ##let's watch the correletion between the variables in order to see which weights to put
-cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall", "Good", "Normal","Bad","Very_Bad","normal_atemp","normal_australian_atemp","normal_avg_atemp","temp","humidity","windspeed")]
+cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall", "Good", "Normal","Bad","Very_Bad","normal_atemp","normal_australian_atemp","normal_avg_atemp","temp","humidity","windspeed","atemp")]
 cor(cor_data)
 
 #creating calculated weighted variable based on the correlation matrix
-bike_train_clean_train$agg_climate = (2*bike_train_clean_train$normal_avg_atemp)+ (bike_train_clean_train$Good+bike_train_clean_train$Normal+bike_train_clean_train$Bad+bike_train_clean_train$Very_Bad)+bike_train_clean_train$spring+bike_train_clean_train$summer +bike_train_clean_train$fall+bike_train_clean_train$winter;
 
-final_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(weighted_final_var^2))
-summary(final_regression)
+#-----------------agg_climate regression----------------------
+bike_train_clean_train$agg_climate = (bike_train_clean_train$normal_avg_atemp)+ (bike_train_clean_train$Good+bike_train_clean_train$Normal+bike_train_clean_train$Bad+bike_train_clean_train$Very_Bad)+bike_train_clean_train$spring+bike_train_clean_train$summer +bike_train_clean_train$fall+bike_train_clean_train$winter;
+summary(bike_train_clean_train$agg_climate)
+ac_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(agg_climate^2))
+summary(ac_regression)
 
-ggplot(data=bike_train_clean_train)+aes(x=weighted_final_var,y=count,color=weather)  + 
+ggplot(data=bike_train_clean_train)+aes(x=agg_climate,y=count,color=weather)  + 
   geom_point(alpha=0.6)+ 
-  geom_line(mapping = aes(y=predict(final_regression)),size=1)
+  geom_line(mapping = aes(y=predict(ac_regression)),size=1)
+
+
+#------------------agg_climate & hour_categor regression---------------------------------------------
+ac_h_regression = lm(count ~ agg_climate+hour_categor, data=bike_train_clean_train)
+summary(ac_h_regression)
+
+ggplot(data=bike_train_clean_train)+aes(x=agg_climate,y=count,color = hour_categor)  + 
+  geom_point(alpha=0.6)+ 
+  geom_line(mapping = aes(y=predict(ac_h_regression)),size=1)
+###%%%%%%%%%%%missing the file of test.....%%%%%%%%%%%%%%%%%
+
 ##--------------------------columns for validation-------------------
 #again but for the validation data
 #creating new features - realtive humidity, australian atemp and converting categorial to dummies
@@ -443,18 +456,6 @@ colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bi
 #************************************************************
 
 
-'''
-AT = Ta + 0.33×e − 0.70×ws − 4.00
-Ta = Dry bulb temperature (°C)
-
-e = Water vapour pressure (hPa) [humidity]
-
-ws = Wind speed (m/s) at an elevation of 10 meters
-
-The vapour pressure can be calculated from the temperature and relative humidity using the equation: 
-
-e = rh / 100 × 6.105 × exp ( 17.27 × Ta / ( 237.7 + Ta ) )
-'''
 
 #-------------------------------------Final Model - FAMD---------------------------------------
 
