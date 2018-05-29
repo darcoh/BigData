@@ -18,7 +18,7 @@ theme_set(theme_bw())
 setwd("Data"); 
 list.files()
 bike_train <- read.csv("bike_train.csv",header = T)
-
+bike_test <- read.csv("bike_test.csv",header = T)
 #--------------creating Datetime object and time fields----------------------------
 
 bike_train$datetime = as.POSIXlt(bike_train$datetime, tz = "", format="%Y-%m-%d %H:%M:%S");
@@ -48,6 +48,7 @@ ind_rows = rowSums(is.na(bike_train_clean)) == ncol(bike_train_clean)
 ind_col = colSums(is.na(bike_train_clean)) == nrow(bike_train_clean)
 summary(ind_rows)
 summary(ind_col)
+
 
 #------------------------------------------------------------------------------------------
 #----------------------------statistial conclusions-----------------------------------------------------
@@ -315,6 +316,8 @@ ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = hour  )  +
   labs(title="temp against count",x="temp",y="count")
 
 bike_train_clean_train$hour_categor = factor(bike_train_clean_train$hour)
+bike_train_clean_validation$hour_categor = factor(bike_train_clean_validation$hour)
+
 
 multi_reg_categorical= lm(count~temp+hour_categor, data=bike_train_clean_train);
 summary(multi_reg)
@@ -323,18 +326,6 @@ ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = hour_categor  )  
   geom_point(alpha=0.6)+ 
   geom_line(mapping = aes(y=predict(multi_reg_categorical)),size=1)+
   labs(title="temp against count",x="temp",y="count")
-
-
-#plot the regression line you created before for sale price with GrLivArea and and LotShape
-
-
-#linear regression with time as a factor variabla
-multi_reg_interact <- lm(count~temp*time , data=bike_train_clean_train)
-summary(multi_reg_interact)
-
-ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color=time)  + 
-  geom_point(alpha=0.6)+ 
-  geom_line(mapping = aes(y=predict(multi_reg_interact)),size=1)
 
 #a new categorical variable of period in the day
 bike_train_clean_train$daytime_categor = NA
@@ -348,6 +339,12 @@ bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation
 bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=12 & bike_train_clean_validation$hour<=17,"noon",bike_train_clean_validation$daytime_categor)
 bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=18 & bike_train_clean_validation$hour<=23,"evening",bike_train_clean_validation$daytime_categor)
 bike_train_clean_validation$daytime_categor = ifelse(bike_train_clean_validation$hour>=0 & bike_train_clean_validation$hour<=5,"night",bike_train_clean_validation$daytime_categor)
+
+bike_test$daytime_categor = NA
+bike_test$daytime_categor = ifelse(bike_test$hour>=6 & bike_test$hour<=11,"morning", bike_test$daytime_categor)
+bike_test$daytime_categor = ifelse(bike_test$hour>=12 & bike_test$hour<=17,"noon",bike_test$daytime_categor)
+bike_test$daytime_categor = ifelse(bike_test$hour>=18 & bike_test$hour<=23,"evening",bike_test$daytime_categor)
+bike_test$daytime_categor = ifelse(bike_test$hour>=0 & bike_test$hour<=5,"night",bike_test$daytime_categor)
 
 
 #linear regression with time as a factor variabla
@@ -369,13 +366,20 @@ ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color=daytime_categor)  +
 #Checking which model has the best training R^2
 summary(multi_reg_daytime)$r.squared
 summary(multi_reg_daytime_interaction)$r.squared
+summary(multi_reg)$r.squared
+summary(multi_reg_categorical)$r.squared
 # the fact that one model has a better r.squared doesn't mean anything if this model has more variables
 
-validation_sse<-sum((predict(object =multi_reg_daytime,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
-validation_sse_interact<-sum((predict(object =multi_reg_daytime_interaction,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
-validation_sse_interact>validation_sse
-print(validation_sse_interact)
+validation_sse=sum((predict(object = multi_reg, newdata = bike_train_clean_validation) - bike_train_clean_validation$count)^2)
+validation_sse_categor=sum((predict(object = multi_reg_categorical, newdata = bike_train_clean_validation) - bike_train_clean_validation$count)^2)
+validation_sse_daytime=sum((predict(object =multi_reg_daytime,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
+validation_sse_daytime_interact<-sum((predict(object =multi_reg_daytime_interaction,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
+validation_sse_daytime_interact>validation_sse_daytime
+print(validation_sse_daytime_interact)
+print(validation_sse_daytime)
 print(validation_sse)
+print(validation_sse_categor)
+
 # we got that the model without interaction gives bigger sse, so we will choose him over the model with the interaction
 
 #---------------------------------------c--------------------------------------------------
