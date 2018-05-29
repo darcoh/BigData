@@ -337,7 +337,7 @@ ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = hour  )  +
 
 bike_train_clean_train$hour_categor = factor(bike_train_clean_train$hour)
 bike_train_clean_validation$hour_categor = factor(bike_train_clean_validation$hour)
-
+bike_test_clean$hour_categor = factor(bike_test_clean$hour)
 
 multi_reg_categorical= lm(count~temp+hour_categor, data=bike_train_clean_train);
 summary(multi_reg)
@@ -410,6 +410,10 @@ print(validation_sse_categor)
 #creating new features - realtive humidity, australian atemp and converting categorial to dummies
 bike_train_clean_train$relative_humidity = bike_train_clean_train$humidity/100;
 bike_train_clean_train$australian_atemp = bike_train_clean_train$temp+0.33*bike_train_clean_train$relative_humidity*6.105*exp(((17.27*bike_train_clean_train$temp)/(237.7+bike_train_clean_train$temp)))+0.7*bike_train_clean_train$windspeed-4;
+
+bike_test_clean$relative_humidity = bike_test_clean$humidity/100;
+bike_test_clean$australian_atemp = bike_test_clean$temp+0.33*bike_test_clean$relative_humidity*6.105*exp(((17.27*bike_test_clean$temp)/(237.7+bike_test_clean$temp)))+0.7*bike_test_clean$windspeed-4;
+
 #normalizing austrlaian temp using method: (value-min(value)/max(value)-min(value))
 bike_train_clean_train$normal_australian_atemp = ((bike_train_clean_train$australian_atemp-min(bike_train_clean_train$australian_atemp))/(max(bike_train_clean_train$australian_atemp)-min(bike_train_clean_train$australian_atemp)));
 bike_train_clean_train$normal_atemp = ((bike_train_clean_train$atemp-min(bike_train_clean_train$atemp))/(max(bike_train_clean_train$atemp)-min(bike_train_clean_train$atemp)));
@@ -436,6 +440,10 @@ bike_train_clean_train$agg_climate = (bike_train_clean_train$normal_avg_atemp)+ 
 summary(bike_train_clean_train$agg_climate)
 ac_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(agg_climate^2))
 summary(ac_regression)
+
+bike_test_clean$agg_climate = (bike_test_clean$normal_avg_atemp)+ (bike_test_clean$Good+bike_test_clean$Normal+bike_test_clean$Bad+bike_test_clean$Very_Bad)+bike_test_clean$spring+bike_test_clean$summer +bike_test_clean$fall+bike_test_clean$winter;
+summary(bike_test_clean$agg_climate)
+
 
 ggplot(data=bike_train_clean_train)+aes(x=agg_climate,y=count,color=weather)  + 
   geom_point(alpha=0.6)+ 
