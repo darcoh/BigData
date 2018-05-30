@@ -1,3 +1,7 @@
+# Big Data - Econmonics
+# HW2
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 install.packages('ggplot2')
 install.packages('lubridate')
 install.packages(c("FactoMineR", "factoextra"));
