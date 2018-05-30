@@ -27,7 +27,6 @@ bike_train$year = year(bike_train$datetime)
 bike_train$month = month(bike_train$datetime)
 bike_train$weekday =  wday(bike_train$datetime)
 bike_train$hour =  hour(bike_train$datetime)
-
 bike_test$datetime = as.POSIXlt(bike_test$datetime, tz = "", format="%Y-%m-%d %H:%M:%S");
 bike_test$date = date(bike_test$datetime)
 bike_test$year = year(bike_test$datetime)
@@ -49,15 +48,14 @@ bike_test$weather = factor(bike_test$ weather, labels = c("Good", "Normal", "Bad
 
 #-------------------------Winsorizing & cleaning the data--------------------------
 #precent_value_1 <- quantile(bike_train$count,probs =0.01) - for redundency
-precent_value_99 = quantile(bike_train$count,probs =0.99)
+precent_value_99_train = quantile(bike_train$count,probs =0.99)
 
-precent_value_99 = quantile(bike_test$count,probs =0.99)
+precent_value_99_test = quantile(bike_test$temp,probs =0.99)
 
 #dropping rows with extreme values
 # set a new table only with the rows where count are between 1% and 99% quantile
-bike_train_clean = bike_train[bike_train$count<precent_value_99,]
-
-bike_test_clean = bike_test[bike_test$count<precent_value_99,]
+bike_train_clean = bike_train[bike_train$count<precent_value_99_train,]
+bike_test_clean = bike_test[bike_test$temp<precent_value_99_test,]
 
 #proving there are no Na/Nan values
 ind_rows = rowSums(is.na(bike_train_clean)) == ncol(bike_train_clean)
@@ -393,7 +391,7 @@ summary(multi_reg_categorical)$r.squared
 validation_sse=sum((predict(object = multi_reg, newdata = bike_train_clean_validation) - bike_train_clean_validation$count)^2)
 validation_sse_categor=sum((predict(object = multi_reg_categorical, newdata = bike_train_clean_validation) - bike_train_clean_validation$count)^2)
 validation_sse_daytime=sum((predict(object =multi_reg_daytime,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
-validation_sse_daytime_interact<-sum((predict(object =multi_reg_daytime_interaction,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
+validation_sse_daytime_interact=sum((predict(object =multi_reg_daytime_interaction,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
 validation_sse_daytime_interact>validation_sse_daytime
 print(validation_sse_daytime_interact)
 print(validation_sse_daytime)
@@ -416,6 +414,7 @@ bike_train_clean_train$normal_atemp = ((bike_train_clean_train$atemp-min(bike_tr
 bike_train_clean_train$normal_avg_atemp = (bike_train_clean_train$normal_australian_atemp+bike_train_clean_train$normal_atemp)/2;
 bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$season,sep = "_"));
 bike_train_clean_train = cbind(bike_train_clean_train, dummy(bike_train_clean_train$weather,sep = "_"));
+#changing the names of the columns to be more functional
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_spring"] = "spring";
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_winter"] = "winter";
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_summer"] = "summer";
@@ -434,66 +433,78 @@ cor(cor_data)
 #-----------------agg_climate regression----------------------
 bike_train_clean_train$agg_climate = (bike_train_clean_train$normal_avg_atemp)+ (bike_train_clean_train$Good+bike_train_clean_train$Normal+bike_train_clean_train$Bad+bike_train_clean_train$Very_Bad)+bike_train_clean_train$spring+bike_train_clean_train$summer +bike_train_clean_train$fall+bike_train_clean_train$winter;
 summary(bike_train_clean_train$agg_climate)
-ac_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(agg_climate^2))
-summary(ac_regression)
+agg_climate_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(agg_climate^2))
+summary(agg_climate_regression)
 
 ggplot(data=bike_train_clean_train)+aes(x=agg_climate,y=count,color=weather)  + 
   geom_point(alpha=0.6)+ 
-  geom_line(mapping = aes(y=predict(ac_regression)),size=1)
-
+  geom_line(mapping = aes(y=predict(agg_climate_regression)),size=1)
 
 #------------------agg_climate & hour_categor regression---------------------------------------------
-ac_h_regression = lm(count ~ agg_climate+hour_categor, data=bike_train_clean_train)
-summary(ac_h_regression)
+agg_climate_hour_regression = lm(count ~ agg_climate+hour_categor, data=bike_train_clean_train)
+summary(agg_climate_hour_regression)
 
 ggplot(data=bike_train_clean_train)+aes(x=agg_climate,y=count,color = hour_categor)  + 
   geom_point(alpha=0.6)+ 
-  geom_line(mapping = aes(y=predict(ac_h_regression)),size=1)
-###%%%%%%%%%%%missing the file of test.....%%%%%%%%%%%%%%%%%
+  geom_line(mapping = aes(y=predict(agg_climate_hour_regression)),size=1)
 
-##--------------------------columns for validation-------------------
+##--------------------------columns for validation (same as train-------------------
 #again but for the validation data
 #creating new features - realtive humidity, australian atemp and converting categorial to dummies
 bike_train_clean_validation$relative_humidity = bike_train_clean_validation$humidity/100;
 bike_train_clean_validation$australian_atemp = bike_train_clean_validation$temp+0.33*bike_train_clean_validation$relative_humidity*6.105*exp(((17.27*bike_train_clean_validation$temp)/(237.7+bike_train_clean_validation$temp)))+0.7*bike_train_clean_validation$windspeed-4;
 #normalizing austrlaian temp using method: (value-mean(value)/max(value)-min(value))
-bike_train_clean_validation$normal_australian_atemp = ((bike_train_clean_validation$australian_atemp-mean(bike_train_clean_validation$australian_atemp))/(max(bike_train_clean_validation$australian_atemp)-min(bike_train_clean_validation$australian_atemp)));
-bike_train_clean_validation$normal_atemp = ((bike_train_clean_validation$atemp-mean(bike_train_clean_validation$atemp))/(max(bike_train_clean_validation$atemp)-min(bike_train_clean_validation$atemp)));
+bike_train_clean_validation$normal_australian_atemp = ((bike_train_clean_validation$australian_atemp-min(bike_train_clean_validation$australian_atemp))/(max(bike_train_clean_validation$australian_atemp)-min(bike_train_clean_validation$australian_atemp)));
+bike_train_clean_validation$normal_atemp = ((bike_train_clean_validation$atemp-min(bike_train_clean_validation$atemp))/(max(bike_train_clean_validation$atemp)-min(bike_train_clean_validation$atemp)));
 bike_train_clean_validation$normal_avg_atemp = (bike_train_clean_validation$normal_australian_atemp+bike_train_clean_validation$normal_atemp)/2;
 
 bike_train_clean_validation = cbind(bike_train_clean_validation, dummy(bike_train_clean_validation$season,sep = "_"));
 bike_train_clean_validation = cbind(bike_train_clean_validation, dummy(bike_train_clean_validation$weather,sep = "_"));
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_spring"] = "spring";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_winter"] = "winter";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_summer"] = "summer";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_fall"] = "fall";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Good"] = "Good";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Normal"] = "Normal";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Bad"] = "Bad";
-colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_train_Very Bad"] = "Very_Bad";
-
-#************************************************************
-
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_spring"] = "spring";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_winter"] = "winter";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_summer"] = "summer";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_fall"] = "fall";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_Good"] = "Good";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_Normal"] = "Normal";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_Bad"] = "Bad";
+colnames(bike_train_clean_validation)[colnames(bike_train_clean_validation)=="bike_train_clean_validation_Very Bad"] = "Very_Bad";
+bike_train_clean_validation$agg_climate = (bike_train_clean_validation$normal_avg_atemp)+ (bike_train_clean_validation$Good +bike_train_clean_validation$Normal +bike_train_clean_validation$Bad) +bike_train_clean_validation$spring+bike_train_clean_validation$summer +bike_train_clean_validation$fall+bike_train_clean_validation$winter;
 
 
-#-------------------------------------Final Model - FAMD---------------------------------------
-
-bike_train_clean_train_famd = bike_train_clean_train[,c("weather","season","windspeed","humidity","temp","atemp")]
-famd=FAMD(bike_train_clean_train_famd, ncp = 6, sup.var = NULL, ind.sup = NULL, graph = TRUE);
-print(get_eigenvalue(famd))
-fviz_screeplot(famd)
-get_famd_var(famd)
-# Plot of variables
-fviz_famd_var(famd, repel = TRUE)
-
-# Contribution to the first dimension
-fviz_contrib(famd, "var", axes = 1)
-# Contribution to the second dimension
-fviz_contrib(famd, "var", axes = 2)
-fviz_famd_var(famd, "quanti.var", repel = TRUE,col.var = "black")
-fviz_famd_var(famd, "quanti.var", col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),repel = TRUE)
+validation_sse_ach=sum((predict(object =agg_climate_hour_regression,newdata =bike_train_clean_validation ) - bike_train_clean_validation$count)^2)
 
 #------------------------------------Predict and ESS-------------------------------------------------
-count_predict = predict(object = ac_h_regression, newdata = bike_test_clean)
+#----------------------------------------------------------------------------------------------------
+#again but for the test data
+#creating new features - realtive humidity, australian atemp and converting categorial to dummies
+bike_test_clean$relative_humidity = bike_test_clean$humidity/100;
+bike_test_clean$australian_atemp = bike_test_clean$temp+0.33*bike_test_clean$relative_humidity*6.105*exp(((17.27*bike_test_clean$temp)/(237.7+bike_test_clean$temp)))+0.7*bike_test_clean$windspeed-4;
+#normalizing austrlaian temp using method: (value-mean(value)/max(value)-min(value))
+bike_test_clean$normal_australian_atemp = ((bike_test_clean$australian_atemp-min(bike_test_clean$australian_atemp))/(max(bike_test_clean$australian_atemp)-min(bike_test_clean$australian_atemp)));
+bike_test_clean$normal_atemp = ((bike_test_clean$atemp-min(bike_test_clean$atemp))/(max(bike_test_clean$atemp)-min(bike_test_clean$atemp)));
+bike_test_clean$normal_avg_atemp = (bike_test_clean$normal_australian_atemp+bike_test_clean$normal_atemp)/2;
 
-predict_sse=sum((predict(object = ac_h_regression, newdata = bike_test_clean) - bike_test_clean$count_predict)^2)
+bike_test_clean = cbind(bike_test_clean, dummy(bike_test_clean$season,sep = "_"));
+bike_test_clean = cbind(bike_test_clean, dummy(bike_test_clean$weather,sep = "_"));
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_spring"] = "spring";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_winter"] = "winter";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_summer"] = "summer";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_fall"] = "fall";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_Good"] = "Good";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_Normal"] = "Normal";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_Bad"] = "Bad";
+colnames(bike_test_clean)[colnames(bike_test_clean)=="bike_test_clean_Very Bad"] = "Very_Bad";
+bike_test_clean$hour_categor = factor(bike_test_clean$hour);
+bike_test_clean$agg_climate = (bike_test_clean$normal_avg_atemp)+ (bike_test_clean$Good +bike_test_clean$Normal +bike_test_clean$Bad +bike_test_clean$spring+bike_test_clean$summer +bike_test_clean$fall+bike_test_clean$winter);
+
+#------------------------------------creating the columns-------------------------------------------------
+
+bike_test_clean$results_count_predict = predict(object = agg_climate_hour_regression, newdata = bike_test_clean);
+#zeroing all negetive values
+bike_test_clean$results_count_predict = ifelse(bike_test_clean$results_count_predict<0,0, bike_test_clean$results_count_predict)
+summary(bike_test_clean$results_count_predict)
+predict_sse=sum((predict(object = agg_climate_hour_regression, newdata = bike_test_clean) - bike_test_clean$count_predict)^2)
+#writing to file
+write.table(bike_test_clean, file = "final_results.csv",sep=",");
+
+#-----------------------------The End-----------------------------------------------------------
