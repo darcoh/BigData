@@ -10,3 +10,9 @@ library(lubridate)
 library("FactoMineR")
 library("factoextra");
 library(dummies)
+
+
+#local data folder
+list.files()
+airbnbTrain_df <- read.csv("airbnb_train.csv",header = T)
+airbnbTest_df <- read.csv("airbnb_test.csv.csv",header = T)
