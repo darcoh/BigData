@@ -28,6 +28,7 @@ bike_train$month = month(bike_train$datetime)
 bike_train$weekday =  wday(bike_train$datetime)
 bike_train$hour =  hour(bike_train$datetime)
 
+
 bike_test$datetime = as.POSIXlt(bike_test$datetime, tz = "", format="%Y-%m-%d %H:%M:%S");
 bike_test$date = date(bike_test$datetime)
 bike_test$year = year(bike_test$datetime)
@@ -47,29 +48,25 @@ bike_test$holiday = factor(bike_test$ holiday, label = c("not holiday", "holiday
 bike_test$workingday = factor(bike_test$ workingday, labels = c("not workingday", "workingday"))
 bike_test$weather = factor(bike_test$ weather, labels = c("Good", "Normal", "Bad"))
 
+
 #-------------------------Winsorizing & cleaning the data--------------------------
 #precent_value_1 <- quantile(bike_train$count,probs =0.01) - for redundency
 precent_value_99 = quantile(bike_train$count,probs =0.99)
 
-precent_value_99 = quantile(bike_test$count,probs =0.99)
 
 #dropping rows with extreme values
 # set a new table only with the rows where count are between 1% and 99% quantile
 bike_train_clean = bike_train[bike_train$count<precent_value_99,]
 
-bike_test_clean = bike_test[bike_test$count<precent_value_99,]
 
 #proving there are no Na/Nan values
 ind_rows = rowSums(is.na(bike_train_clean)) == ncol(bike_train_clean)
 ind_col = colSums(is.na(bike_train_clean)) == nrow(bike_train_clean)
+
 summary(ind_rows)
 summary(ind_col)
 
 
-ind_rows = rowSums(is.na(bike_test_clean)) == ncol(bike_test_clean)
-ind_col = colSums(is.na(bike_test_clean)) == nrow(bike_test_clean)
-summary(ind_rows)
-summary(ind_col)
 
 #------------------------------------------------------------------------------------------
 #----------------------------statistial conclusions-----------------------------------------------------
@@ -337,7 +334,8 @@ ggplot(data=bike_train_clean_train)+aes(x=temp,y=count,color = hour  )  +
 
 bike_train_clean_train$hour_categor = factor(bike_train_clean_train$hour)
 bike_train_clean_validation$hour_categor = factor(bike_train_clean_validation$hour)
-bike_test_clean$hour_categor = factor(bike_test_clean$hour)
+
+bike_test$hour_categor = factor(bike_test$hour)
 
 multi_reg_categorical= lm(count~temp+hour_categor, data=bike_train_clean_train);
 summary(multi_reg)
@@ -411,8 +409,8 @@ print(validation_sse_categor)
 bike_train_clean_train$relative_humidity = bike_train_clean_train$humidity/100;
 bike_train_clean_train$australian_atemp = bike_train_clean_train$temp+0.33*bike_train_clean_train$relative_humidity*6.105*exp(((17.27*bike_train_clean_train$temp)/(237.7+bike_train_clean_train$temp)))+0.7*bike_train_clean_train$windspeed-4;
 
-bike_test_clean$relative_humidity = bike_test_clean$humidity/100;
-bike_test_clean$australian_atemp = bike_test_clean$temp+0.33*bike_test_clean$relative_humidity*6.105*exp(((17.27*bike_test_clean$temp)/(237.7+bike_test_clean$temp)))+0.7*bike_test_clean$windspeed-4;
+bike_test$relative_humidity = bike_test$humidity/100;
+bike_test$australian_atemp = bike_test$temp+0.33*bike_test$relative_humidity*6.105*exp(((17.27*bike_test$temp)/(237.7+bike_test$temp)))+0.7*bike_test$windspeed-4;
 
 #normalizing austrlaian temp using method: (value-min(value)/max(value)-min(value))
 bike_train_clean_train$normal_australian_atemp = ((bike_train_clean_train$australian_atemp-min(bike_train_clean_train$australian_atemp))/(max(bike_train_clean_train$australian_atemp)-min(bike_train_clean_train$australian_atemp)));
@@ -429,6 +427,11 @@ colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_c
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Bad"] = "Bad";
 colnames(bike_train_clean_train)[colnames(bike_train_clean_train)=="bike_train_clean_train_Very Bad"] = "Very_Bad";
 
+bike_test$normal_australian_atemp = ((bike_test$australian_atemp-min(bike_test$australian_atemp))/(max(bike_test$australian_atemp)-min(bike_test$australian_atemp)));
+bike_test$normal_atemp = ((bike_test$atemp-min(bike_test$atemp))/(max(bike_test$atemp)-min(bike_test$atemp)));
+bike_test$normal_avg_atemp = (bike_test$normal_australian_atemp+bike_test$normal_atemp)/2;
+
+
 ##let's watch the correletion between the variables in order to see which weights to put
 cor_data = bike_train_clean_train[,c("count", "spring","winter", "summer", "fall", "Good", "Normal","Bad","Very_Bad","normal_atemp","normal_australian_atemp","normal_avg_atemp","temp","humidity","windspeed","atemp")]
 cor(cor_data)
@@ -441,8 +444,8 @@ summary(bike_train_clean_train$agg_climate)
 ac_regression = lm(count ~ agg_climate, data=bike_train_clean_train, weights=1/(agg_climate^2))
 summary(ac_regression)
 
-bike_test_clean$agg_climate = (bike_test_clean$normal_avg_atemp)+ (bike_test_clean$Good+bike_test_clean$Normal+bike_test_clean$Bad+bike_test_clean$Very_Bad)+bike_test_clean$spring+bike_test_clean$summer +bike_test_clean$fall+bike_test_clean$winter;
-summary(bike_test_clean$agg_climate)
+bike_test$agg_climate = (bike_test$normal_avg_atemp)+ (bike_test$Good+bike_test$Normal+bike_test$Bad+bike_test$Very_Bad)+bike_test$spring+bike_test$summer +bike_test$fall+bike_test$winter;
+summary(bike_test$agg_climate)
 
 
 ggplot(data=bike_train_clean_train)+aes(x=agg_climate,y=count,color=weather)  + 
@@ -505,3 +508,5 @@ fviz_famd_var(famd, "quanti.var", col.var = "contrib", gradient.cols = c("#00AFB
 count_predict = predict(object = ac_h_regression, newdata = bike_test_clean)
 
 predict_sse=sum((predict(object = ac_h_regression, newdata = bike_test_clean) - bike_test_clean$count_predict)^2)
+
+print(bike_test_clean)
