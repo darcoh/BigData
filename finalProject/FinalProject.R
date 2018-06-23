@@ -5,7 +5,6 @@ install.packages(c("FactoMineR", "factoextra"));
 install.packages("dummies");
 install.packages("data.table");
 install.packages('bit64')
-
 install.packages("dplyr")
 install.packages("data.table")
 install.packages("bit64")
@@ -139,7 +138,6 @@ sqldf("select count(*) from airbnbTrain_df where timestampFirstActive is NULL") 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~timestamp upgrades~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-<<<<<<< HEAD
 airbnbTrain_df$diffDaysAccountFirstActive =as.numeric(
                 as.Date(as.character(airbnbTrain_df$dateAccountCreated), format="%Y-%m-%d") -
                 as.Date(as.character(airbnbTrain_df$dateTimestampFirstActive), format="%Y-%m-%d")
@@ -190,8 +188,6 @@ sqldf("select count(*) from airbnbTrain_df where signup_flow is NULL"); #0
 ggplot(airbnbTrain_df, aes(signup_flow)) + stat_count(color="purple",geom = "bar")
 
 
-=======
->>>>>>> 0275475f741df5d1cab8a406a2035007c56c727a
 #-----------merging signup_app categories on Train file------------------------
 airbnbTrain_df = airbnbTrain_df[,signup_app:= ifelse(signup_app=="iOS", "Mobile", signup_app)]
 airbnbTrain_df = airbnbTrain_df[,signup_app:= ifelse(signup_app=="Android", "Mobile", signup_app)]
@@ -340,8 +336,6 @@ ggplot(airbnbTrain_df, aes(first_browser)) + stat_count(color="blue",geom = "bar
 
 table(airbnbTrain_df$first_browser)
 cor(data.frame(airbnbTrain_df$country_destination,airbnbTrain_df$gender,airbnbTrain_df$age,airbnbTrain_df$signup_method,airbnbTrain_df$signup_flow, airbnbTrain_df$language, airbnbTrain_df$affiliate_channel, airbnbTrain_df$affiliate_provider, airbnbTrain_df$first_affiliate_tracked, airbnbTrain_df$signup_app, airbnbTrain_df$first_device_type, airbnbTrain_df$first_browser))
-<<<<<<< HEAD
-=======
+
 
     
->>>>>>> 0275475f741df5d1cab8a406a2035007c56c727a
