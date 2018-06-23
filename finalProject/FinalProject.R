@@ -9,7 +9,9 @@ install.packages("dplyr")
 install.packages("data.table")
 install.packages("bit64")
 install.packages("sqldf")
+install.packages("GoodmanKruskal")
 
+library(GoodmanKruskal)
 library(ggplot2)
 library(lubridate)
 library("FactoMineR")
@@ -257,7 +259,7 @@ airbnbTest_df = airbnbTest_df[,first_affiliate_tracked:= ifelse(first_affiliate_
 #---------------------------------------------------------------------------
 #---------------------------signup_app--------------------------------------
 #---------------------------------------------------------------------------
-airbnbTrain_df = airbnbTrain_df[,first_affiliate_tracked:= ifelse(first_affiliate_tracked==" ", "na", signup_app)]
+airbnbTrain_df = airbnbTrain_df[,signup_app:= ifelse(signup_app==" ", "na", signup_app)]
 
 
 #---------------------------------------------------------------------------
@@ -265,6 +267,7 @@ airbnbTrain_df = airbnbTrain_df[,first_affiliate_tracked:= ifelse(first_affiliat
 #---------------------------------------------------------------------------
 airbnbTrain_df = airbnbTrain_df[,first_affiliate_tracked:= ifelse(first_device_type=="Other/Unknown", "na", first_device_type)]
 airbnbTest_df = airbnbTest_df[,first_device_type:= ifelse(first_device_type=="Other/Unknown", "na", first_device_type)]
+
 
 
 #---------------------------------------------------------------------------
@@ -334,8 +337,37 @@ ggplot(airbnbTrain_df, aes(first_device_type)) + stat_count(color="blue",geom = 
 #---------------------------------------------------------------------------
 ggplot(airbnbTrain_df, aes(first_browser)) + stat_count(color="blue",geom = "bar")
 
+
+
+#-------------------trying to create correlations----------------------------
 table(airbnbTrain_df$first_browser)
 cor(data.frame(airbnbTrain_df$country_destination,airbnbTrain_df$gender,airbnbTrain_df$age,airbnbTrain_df$signup_method,airbnbTrain_df$signup_flow, airbnbTrain_df$language, airbnbTrain_df$affiliate_channel, airbnbTrain_df$affiliate_provider, airbnbTrain_df$first_affiliate_tracked, airbnbTrain_df$signup_app, airbnbTrain_df$first_device_type, airbnbTrain_df$first_browser))
 
 
+
+#language VS. country destination bar plot
+ggplot(airbnbTrain_df, aes(x=language, y=country_destination)) + 
+  geom_bar(stat="identity", width=.5, fill="green") + 
+  labs(title="Ordered Bar Chart", 
+       subtitle="weather Vs count") + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
     
+
+# age VS. gender vS. country destination
+country_ageLabels_gender = aggregate(cbind(country_destination) ~ ageLabels + gender , data = airbnbTrain_df, sum, na.rm = TRUE)
+ggplot() + geom_area(aes(y = country_destination, x = ageLabels, fill = gender), data = country_ageLabels_gender,
+                     stat="identity")
+
+
+varset1 = c("language","gender","country_destination","weekdayAccountCreated","ageBins","dateAccountCreated", "signup_app")
+airbnbTrain_df1 = subset(airbnbTrain_df, select = varset1)
+GKmatrix1 = GKtauDataframe(airbnbTrain_df1)
+plot(GKmatrix1, corrColors = "blue")
+
+#-----------Divide the data to a train (70%) and validation (30%)---------------------------
+n = nrow(airbnbTrain_df)
+set.seed(1234) 
+train = sample(1:n,size =0.7*n,replace = F ) 
+airbnbTrain_df_Train = airbnbTrain_df[train,] 
+airbnbTrain_df_Valid = airbnbTrain_df[-train,] 
+
