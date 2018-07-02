@@ -10,6 +10,10 @@ install.packages("data.table")
 install.packages("bit64")
 install.packages("sqldf")
 install.packages("GoodmanKruskal")
+install.packages("VIM")
+install.packages("openxlsx")
+install.packages("ggcorrplot")
+install.packages("DataExplorer")
 
 #-------------------------------Libraries in use-----------------------------------------
 
@@ -25,7 +29,11 @@ library(dplyr)
 library("data.table")
 library("bit64")
 library(sqldf)
-
+library(openxlsx)
+library(VIM)
+library(ggcorrplot)
+library(GoodmanKruskal)
+library(DataExplorer)
 #-------------------------------setting libray of FinalProject-----------------------------------------
 
 setwd("finalProject") #local data folder
@@ -73,6 +81,8 @@ sqldf("select count(*) from airbnbTrain_df_real where age is NULL") #70398
 
 #changing all people whos their age is greater then 1900 (in years)
 airbnbTrain_df_real = airbnbTrain_df_real[, age := ifelse(age >= 1900, 2018-age, age)]
+#Test
+airbnbTest_df=airbnbTest_df[, age := ifelse(age >= 1900, 2018-age, age)]
 
 #count histograma
 data.frame(t(sqldf("select age,count(age) from airbnbTrain_df_real group by age")))
@@ -84,6 +94,9 @@ sqldf("select count(*) from airbnbTrain_df_real where age<15 or age>100")
 
 #converting people whos age>100 and age<15 to NA
 airbnbTrain_df_real = airbnbTrain_df_real[age<15|age>100, age:=NA]
+#Test
+airbnbTest_df=airbnbTest_df[age<15|age>100, age:=NA]
+
 ggplot(airbnbTrain_df_real)+aes(age)+
   geom_histogram(binwidth = 2);
 
@@ -106,6 +119,9 @@ ageLabels = c("15-19","20-24","25-29","30-34","35-39","40-44","45-49","50-54","5
 
 airbnbTrain_df_real[ , ageBins := cut(age, breaks = ageBreaks, 
                                         right = FALSE, labels = ageLabels)]
+#Test
+airbnbTest_df[ , ageBins := cut(age, breaks = ageBreaks, 
+                                right = FALSE, labels = ageLabels)]
 
 ggplot(airbnbTrain_df_real, aes(ageBins)) + stat_count(color="blue",geom = "bar")
 
@@ -119,6 +135,9 @@ ggplot(airbnbTrain_df_real, aes(gender)) + stat_count(color="blue",geom = "bar")
 sqldf("select count(*) from airbnbTrain_df_real where gender=='-unknown-'") #76534
 #converting people of gender -unknown- to NA
 airbnbTrain_df_real = airbnbTrain_df_real[gender=='-unknown-', gender:=NA];
+#Test
+airbnbTest_df = airbnbTest_df[gender=='-unknown-', gender:=NA];
+
 #asserting they were converted to NULL
 sqldf("select count(*) from airbnbTrain_df_real where gender is NULL") #76534
 
@@ -146,12 +165,21 @@ ggplot(airbnbTrain_df_real, aes(weekdayAccountCreated)) + stat_count(color="blue
 sqldf("select weekdayAccountCreated,count(*) as weekdayCount from airbnbTrain_df_real group by weekdayAccountCreated");
 
 
+#Test converting to date format
+setDT(airbnbTest_df)[, dateAccountCreated := as.POSIXct(date_account_created, format = "%Y-%m-%d", tz="UTC")]
+setDT(airbnbTest_df)[, yearAccountCreated := year(as.Date(dateAccountCreated))]
+setDT(airbnbTest_df)[, monthAccountCreated := month(as.Date(dateAccountCreated))]
+setDT(airbnbTest_df)[, weekdayAccountCreated := wday(as.Date(dateAccountCreated))]
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Date First Booking~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sqldf("select count(*) from airbnbTrain_df_real where date_first_booking==''") #99661
 
 #converting date_first_booking of type "" to NA
 airbnbTrain_df_real = airbnbTrain_df_real[date_first_booking=='', date_first_booking:=NA];
+#Test
+airbnbTest_df = airbnbTest_df[date_first_booking=='', date_first_booking:=NA];
+
 #asserting they are null
 sqldf("select count(*) from airbnbTrain_df_real where date_first_booking is NULL") #99661
 
@@ -160,7 +188,6 @@ setDT(airbnbTrain_df_real)[, dateFirstBooking := as.POSIXct(date_first_booking, 
 setDT(airbnbTrain_df_real)[, yearFirstBooking := year(as.Date(dateFirstBooking))]
 setDT(airbnbTrain_df_real)[, monthFirstBooking := month(as.Date(dateFirstBooking))]
 setDT(airbnbTrain_df_real)[, weekdayFirstBooking :=  wday(as.Date(dateFirstBooking))]
-
 airbnbTrain_df_real = airbnbTrain_df_real[is.na(dateFirstBooking), yearFirstBooking:=NA];
 airbnbTrain_df_real = airbnbTrain_df_real[is.na(dateFirstBooking), monthFirstBooking:=NA];
 airbnbTrain_df_real = airbnbTrain_df_real[is.na(dateFirstBooking), weekdayFirstBooking:=NA];
@@ -178,6 +205,14 @@ sqldf("select count(*) from airbnbTrain_df where weekdayFirstBooking is NULL") #
 sqldf("select weekdayFirstBooking,count(*) as WeekdayCount from airbnbTrain_df_real group by weekdayFirstBooking");
 
 
+#Test converting to date format
+setDT(airbnbTest_df)[, dateFirstBooking := as.POSIXct(date_first_booking, format = "%Y-%m-%d", tz="UTC")]
+setDT(airbnbTest_df)[, yearFirstBooking := year(as.Date(dateFirstBooking))]
+setDT(airbnbTest_df)[, monthFirstBooking := month(as.Date(dateFirstBooking))]
+setDT(airbnbTest_df)[, weekdayFirstBooking :=  wday(as.Date(dateFirstBooking))]
+airbnbTest_df = airbnbTest_df[is.na(dateFirstBooking), yearFirstBooking:=NA];
+airbnbTest_df = airbnbTest_df[is.na(dateFirstBooking), monthFirstBooking:=NA];
+airbnbTest_df = airbnbTest_df[is.na(dateFirstBooking), weekdayFirstBooking:=NA];
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~timestamp~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -188,6 +223,11 @@ sqldf("select count(*) from airbnbTrain_df_real where timestamp_first_active is 
 setDT(airbnbTrain_df_real)[, timestampFirstActive := as.POSIXct(as.character(timestamp_first_active), format = "%Y%m%d%H%M%S",tz="GMT")]
 summary(airbnbTrain_df_real$timestampFirstActive)
 setDT(airbnbTrain_df_real)[, dateTimestampFirstActive := format(as.Date(timestampFirstActive), "%Y-%m-%d")]
+
+#Test
+setDT(airbnbTest_df)[, timestampFirstActive := as.POSIXct(as.character(timestamp_first_active), format = "%Y%m%d%H%M%S",tz="GMT")]
+summary(airbnbTrain_df_real$timestampFirstActive)
+setDT(airbnbTest_df)[, dateTimestampFirstActive := format(as.Date(timestampFirstActive), "%Y-%m-%d")]
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~timestamp upgrades~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -219,6 +259,22 @@ ggplot(airbnbTrain_df_real, aes(diffDaysAccountFirstActive)) + stat_count(color=
 
 sqldf("select diffDaysBookingFirstActive, count(*) from airbnbTrain_df_real group by diffDaysBookingFirstActive") 
 ggplot(airbnbTrain_df_real, aes(diffDaysBookingFirstActive)) + stat_count(color="green",geom = "bar")
+
+
+#Test
+
+airbnbTest_df$diffDaysAccountFirstActive =as.numeric(
+  as.Date(as.character(airbnbTest_df$dateAccountCreated), format="%Y-%m-%d") -
+    as.Date(as.character(airbnbTest_df$dateTimestampFirstActive), format="%Y-%m-%d")
+) 
+
+airbnbTest_df$diffDaysBookingFirstActive =as.numeric(
+  as.Date(as.character(airbnbTest_df$dateFirstBooking), format="%Y-%m-%d") -
+    as.Date(as.character(airbnbTest_df$dateTimestampFirstActive), format="%Y-%m-%d")
+)         
+airbnbTest_df = airbnbTest_df[,diffDaysAccountFirstActive:= ifelse(diffDaysAccountFirstActive>0, "day&more", diffDaysAccountFirstActive)]
+airbnbTest_df = airbnbTest_df[,diffDaysAccountFirstActive:= ifelse(diffDaysAccountFirstActive==0, "same", diffDaysAccountFirstActive)]
+
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~signup method~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -360,7 +416,7 @@ airbnbTrain_df_real$signup_method = as.factor(airbnbTrain_df_real$signup_method)
 airbnbTrain_df_real$ageBins = as.factor(airbnbTrain_df_real$language);
 airbnbTrain_df_real$affiliate_channel = factor(airbnbTrain_df_real$affiliate_channel)
 airbnbTrain_df_real$affiliate_provider = factor(airbnbTrain_df_real$affiliate_provider)
-airbnbTrain_df_real$affiliate_provider = factor(airbnbTrain_df_real$first_affiliate_tracked)
+airbnbTrain_df_real$first_affiliate_tracked = factor(airbnbTrain_df_real$first_affiliate_tracked)
 airbnbTrain_df_real$first_device_type = factor(airbnbTrain_df_real$first_device_type)
 airbnbTrain_df$signup_app = factor(airbnbTrain_df_real$signup_app)
 airbnbTrain_df_real$first_browser = factor(airbnbTrain_df_real$first_browser)
@@ -371,7 +427,9 @@ airbnbTrain_df_real$monthAccountCreated = as.factor(airbnbTrain_df_real$monthAcc
 airbnbTrain_df_real$monthFirstBooking = as.factor(airbnbTrain_df_real$monthFirstBooking);
 airbnbTrain_df_real$weekdayAccountCreated = as.factor(airbnbTrain_df_real$weekdayAccountCreated);
 airbnbTrain_df_real$weekdayFirstBooking = as.factor(airbnbTrain_df_real$weekdayFirstBooking);
+#//not working
 airbnbTrain_df_real$diffDaysAccountFirstActive = as.factor(airbnbTrain_df$diffDaysAccountFirstActive);
+airbnbTrain_df_real$country_destination = as.factor(airbnbTrain_df$country_destination);
 
 
 airbnbTest_df$gender = as.factor(airbnbTest_df$gender);
@@ -390,17 +448,25 @@ airbnbTest_df$monthAccountCreated = as.factor(airbnbTest_df$monthAccountCreated)
 airbnbTest_df$monthFirstBooking = as.factor(airbnbTest_df$monthFirstBooking);
 airbnbTest_df$weekdayAccountCreated = as.factor(airbnbTest_df$weekdayAccountCreated);
 airbnbTest_df$weekdayFirstBooking = as.factor(airbnbTest_df$weekdayFirstBooking);
+
 airbnbTest_df$diffDaysAccountFirstActive = as.factor(airbnbTrain_df$diffDaysAccountFirstActive);
 
 
 #-------------------trying to create correlations----------------------------
-table(airbnbTrain_df$first_browser)
-cor(data.frame(airbnbTrain_df$country_destination,airbnbTrain_df$gender,airbnbTrain_df$age,airbnbTrain_df$signup_method,airbnbTrain_df$signup_flow, airbnbTrain_df$language, airbnbTrain_df$affiliate_channel, airbnbTrain_df$affiliate_provider, airbnbTrain_df$first_affiliate_tracked, airbnbTrain_df$signup_app, airbnbTrain_df$first_device_type, airbnbTrain_df$first_browser))
+table(airbnbTrain_df_real$first_browser)
+cor(data.frame(airbnbTrain_df_real$country_destination,airbnbTrain_df_real$gender
+               ,airbnbTrain_df_real$age,airbnbTrain_df_real$signup_method,
+               airbnbTrain_df_real$signup_flow, airbnbTrain_df_real$language,
+               airbnbTrain_df_real$affiliate_channel, airbnbTrain_df_real$affiliate_provider, 
+               airbnbTrain_df_real$first_affiliate_tracked, airbnbTrain_df_real$signup_app, 
+               airbnbTrain_df_real$first_device_type, airbnbTrain_df_real$first_browser))
 
+
+sqldf("select country_destination,count(*) from airbnbTrain_df_real group by country_destination");
 
 
 #language VS. country destination bar plot
-ggplot(airbnbTrain_df, aes(x=language, y=country_destination)) + 
+ggplot(airbnbTrain_df_real, aes(x=language, y=country_destination)) + 
   geom_bar(stat="identity", width=.5, fill="green") + 
   labs(title="Ordered Bar Chart", 
        subtitle="weather Vs count") + 
@@ -408,20 +474,47 @@ ggplot(airbnbTrain_df, aes(x=language, y=country_destination)) +
     
 
 # age VS. gender vS. country destination
-country_ageLabels_gender = aggregate(cbind(country_destination) ~ ageLabels + gender , data = airbnbTrain_df, sum, na.rm = TRUE)
+country_ageLabels_gender = aggregate(cbind(country_destination) ~ age + gender , data = airbnbTrain_df_real, sum, na.rm = TRUE)
 ggplot() + geom_area(aes(y = country_destination, x = ageLabels, fill = gender), data = country_ageLabels_gender,
                      stat="identity")
 
 
 varset1 = c("language","gender","country_destination","weekdayAccountCreated","ageBins","dateAccountCreated", "signup_app")
-airbnbTrain_df1 = subset(airbnbTrain_df, select = varset1)
+airbnbTrain_df1 = subset(airbnbTrain_df_real, select = varset1)
 GKmatrix1 = GKtauDataframe(airbnbTrain_df1)
 plot(GKmatrix1, corrColors = "blue")
 
+
+
+ggplot(airbnbTrain_df_real, aes(country_destination))+
+geom_bar(aes(fill=first_device_type), width = 0.5) + 
+theme(axis.text.x = element_text(angle=65, vjust=0.6)) +
+  labs(title="Categorywise Bar Chart", 
+       subtitle="Manufacturer of vehicles", 
+       caption="Source: Manufacturers from 'mpg' dataset")
+
+#-------------------------extras-------------------------
+
+PlotMissing(airbnbTrain_df_real);
+plot_correlation(airbnbTrain_df_real , use = "pairwise.complete.obs")
+
+colnames(airbnbTrain_df_real)
+
+#-------------------------knn imputation for missing data-------------------------
+
+subset_df = subset(airbnbTrain_df_real[1:50000,])
+
+airbnbTrain_df_real_knnImputation1 = kNN(data = subset_df,
+                                         variable=c("affiliate_channel","first_affiliate_tracked",
+                                                    "affiliate_provider", "first_device_type",
+                                                    "first_browser","age","gender"),
+                                         dist_var = colnames(airbnbTrain_df_real),k=1)
+
+summary(airbnbTrain_df_real_knnImputation3$date_first_booking)
+
 #-----------Divide the data to a train (70%) and validation (30%)---------------------------
 n = nrow(airbnbTrain_df)
-set.seed(1234) 
+set.seed(1) 
 train = sample(1:n,size =0.7*n,replace = F ) 
 airbnbTrain_df_Train = airbnbTrain_df[train,] 
 airbnbTrain_df_Valid = airbnbTrain_df[-train,] 
-
