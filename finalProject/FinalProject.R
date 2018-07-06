@@ -15,6 +15,8 @@ install.packages("openxlsx")
 install.packages("ggcorrplot")
 install.packages("DataExplorer")
 install.packages("nnet")
+install.packages("class")
+install.packages("gmodels")
 #-------------------------------Libraries in use-----------------------------------------
 
 library(GoodmanKruskal)
@@ -35,7 +37,8 @@ library(ggcorrplot)
 library(GoodmanKruskal)
 library(DataExplorer)
 library(nnet)
-
+library(class)
+library(gmodels)
 #-------------------------------setting libray of FinalProject-----------------------------------------
 
 setwd("finalProject") #local data folder
@@ -513,8 +516,16 @@ airbnbTrain_df_real_knnImputation1 = kNN(data = subset_df,
 summary(airbnbTrain_df_real_knnImputation3$date_first_booking)
 
 #-----------Divide the data to a train (70%) and validation (30%)---------------------------
-n = nrow(airbnbTrain_df)
+n = nrow(airbnbTrain_df_real)
 set.seed(1) 
 train = sample(1:n,size =0.7*n,replace = F ) 
-airbnbTrain_df_Train = airbnbTrain_df[train,] 
-airbnbTrain_df_Valid = airbnbTrain_df[-train,] 
+airbnbTrain_df_Train_real = airbnbTrain_df[train,] 
+airbnbTrain_df_Valid_real = airbnbTrain_df[-train,] 
+
+
+#------------------Model 2 KNN--------------------------
+
+prc_test_pred = knn(train = airbnbTrain_df_real , test = airbnbTest_df,cl = prc_train_labels, k=100000)
+
+
+CrossTable(x = prc_train_labels, y = prc_test_pred, prop.chisq = FALSE)
