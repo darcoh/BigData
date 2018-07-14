@@ -20,6 +20,12 @@ install.packages("gmodels")
 install.packages("Amelia")
 install.packages("tidyr")
 install.packages("scales")
+install.packages("corrplot")
+install.packages("ROCR")
+install.packages("randomForest")
+install.packages("MASS")
+install.packages("pROC")
+install.packages("xgboost")
 
 #-------------------------------Libraries in use-----------------------------------------
 
@@ -46,6 +52,13 @@ library(gmodels)
 library("Amelia")
 library("tidyr")
 library("scales")
+library(corrplot)
+library(ROCR)
+library(randomForest)
+library(MASS)
+library(pROC)
+library(xgboost)
+
 
 #-------------------------------setting libray of FinalProject-----------------------------------------
 
@@ -124,6 +137,7 @@ ggplot(airbnbTrain_df_real)+aes(age)+
 #summery of the data
 summary(airbnbTrain_df_real$age)
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ageBins~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #age to bins
@@ -158,6 +172,7 @@ sqldf("select count(*) from airbnbTrain_df_real where gender is NULL") #76534
 #ploting after factorization and changes
 ggplot(airbnbTrain_df_real, aes(gender)) + stat_count(color="blue",geom = "bar")
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Date Account Created~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sqldf("select count(*) from airbnbTrain_df_real where date_account_created is NULL") #0
@@ -187,7 +202,9 @@ setDT(airbnbTest_df)[, yearAccountCreated := year(as.Date(dateAccountCreated))]
 setDT(airbnbTest_df)[, monthAccountCreated := month(as.Date(dateAccountCreated))]
 setDT(airbnbTest_df)[, weekdayAccountCreated := wday(as.Date(dateAccountCreated))]
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Date First Booking~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 sqldf("select count(*) from airbnbTrain_df_real where date_first_booking==''") #99661
 
@@ -199,6 +216,7 @@ airbnbTest_df = airbnbTest_df[date_first_booking=='', date_first_booking:=NA];
 #asserting they are null
 sqldf("select count(*) from airbnbTrain_df_real where date_first_booking is NULL") #99661
 
+
 #converting to date format
 setDT(airbnbTrain_df_real)[, dateFirstBooking := as.POSIXct(date_first_booking, format = "%Y-%m-%d", tz="UTC")]
 
@@ -208,6 +226,7 @@ setDT(airbnbTrain_df_real)[, weekdayFirstBooking :=  wday(as.Date(dateFirstBooki
 airbnbTrain_df_real = airbnbTrain_df_real[is.na(dateFirstBooking), yearFirstBooking:=NA];
 airbnbTrain_df_real = airbnbTrain_df_real[is.na(dateFirstBooking), monthFirstBooking:=NA];
 airbnbTrain_df_real = airbnbTrain_df_real[is.na(dateFirstBooking), weekdayFirstBooking:=NA];
+
 
 ggplot(airbnbTrain_df_real, aes(yearFirstBooking)) + stat_count(color="blue",geom = "bar")
 sqldf("select count(*) from airbnbTrain_df_real where yearFirstBooking is NULL") #99661
@@ -220,6 +239,7 @@ sqldf("select monthFirstBooking,count(*) as MonthCount from airbnbTrain_df_real 
 ggplot(airbnbTrain_df_real, aes(weekdayFirstBooking)) + stat_count(color="green",geom = "bar")
 sqldf("select count(*) from airbnbTrain_df_real where weekdayFirstBooking is NULL") #99661
 sqldf("select weekdayFirstBooking,count(*) as WeekdayCount from airbnbTrain_df_real group by weekdayFirstBooking");
+
 
 
 #Test converting to date format
@@ -246,6 +266,7 @@ setDT(airbnbTrain_df_real)[, dateTimestampFirstActive := format(as.Date(timestam
 setDT(airbnbTest_df)[, timestampFirstActive := as.POSIXct(as.character(timestamp_first_active), format = "%Y%m%d%H%M%S",tz="GMT")]
 summary(airbnbTrain_df_real$timestampFirstActive)
 setDT(airbnbTest_df)[, dateTimestampFirstActive := format(as.Date(timestampFirstActive), "%Y-%m-%d")]
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~timestamp upgrades~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -279,6 +300,17 @@ ggplot(airbnbTrain_df_real, aes(diffDaysAccountFirstActive)) + stat_count(color=
 
 sqldf("select diffDaysBookingFirstActive, count(*) from airbnbTrain_df_real group by diffDaysBookingFirstActive") 
 ggplot(airbnbTrain_df_real, aes(diffDaysBookingFirstActive)) + stat_count(color="green",geom = "bar")
+sqldf("select sum(count) 
+      from (
+          select diffDaysBookingFirstActive, count(*) as count 
+          from airbnbTrain_df_real 
+          group by diffDaysBookingFirstActive 
+          having count<3
+      )") 
+
+airbnbTrain_df_real= airbnbTrain_df_real[airbnbTrain_df_real$diffDaysBookingFirstActive<= 365
+                                         |is.na(airbnbTrain_df_real$diffDaysBookingFirstActive),]
+ggplot(airbnbTrain_df_real, aes(diffDaysBookingFirstActive)) + stat_count(color="green",geom = "bar")
 
 
 #Test
@@ -292,6 +324,10 @@ airbnbTest_df$diffDaysBookingFirstActive =as.numeric(
   as.Date(as.character(airbnbTest_df$dateFirstBooking), format="%Y-%m-%d") -
     as.Date(as.character(airbnbTest_df$dateTimestampFirstActive), format="%Y-%m-%d")
 )
+
+
+airbnbTest_df= airbnbTest_df[airbnbTest_df$diffDaysBookingFirstActive<= 365,]
+
 
 #----------
 airbnbTest_df = airbnbTest_df[,diffDaysAccountFirstActive:= ifelse(diffDaysAccountFirstActive>0, "day&more", diffDaysAccountFirstActive)]
@@ -420,8 +456,6 @@ ggplot(airbnbTrain_df_real, aes(first_browser)) + stat_count(color="blue",geom =
 sqldf("select first_browser, count(*) as count
             from airbnbTrain_df_real group by first_browser order by count desc");
 
-#Test
-airbnbTest_df = airbnbTest_df[first_browser=="other", first_browser:=NA];
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Language~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 sqldf("select language, count(*) from airbnbTrain_df_real group by language");
@@ -431,20 +465,44 @@ sqldf("select language, count(*) as count
       from airbnbTrain_df_real group by language order by count desc");
 
 #Test
-airbnbTest_df = airbnbTest_df[language=="other", language:=NA];
 
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~account_created_distance_US_toHoliday~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+sqldf("select account_created_distance_US_toHoliday, count(*) from airbnbTrain_df_real group by account_created_distance_US_toHoliday");
+sqldf("select account_created_distance_US_toHoliday, count(*) from airbnbTrain_df_real where account_created_distance_US_toHoliday is NULL")#0
+#showing data
+ggplot(airbnbTrain_df_real)+aes(account_created_distance_US_toHoliday)+
+  geom_histogram(binwidth = 2);
+
+sqldf("select account_created_distance_US_toHoliday, count(*) as count
+      from airbnbTrain_df_real 
+      group by language 
+      order by count desc");
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~first_booking_distance_US_toHoliday~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+sqldf("select first_booking_distance_US_toHoliday, count(*) from airbnbTrain_df_real group by first_booking_distance_US_toHoliday");
+sqldf("select first_booking_distance_US_toHoliday, count(*) from airbnbTrain_df_real where first_booking_distance_US_toHoliday is NULL")#99661
+#showing data
+ggplot(airbnbTrain_df_real)+aes(first_booking_distance_US_toHoliday)+
+  geom_histogram(binwidth = 2);
+
+sqldf("select first_booking_distance_US_toHoliday, count(*) as count
+      from airbnbTrain_df_real 
+      group by language 
+      order by count desc");
 
 
 #--------------converting features to categorial---------------------------
 airbnbTrain_df_real$gender = as.factor(airbnbTrain_df_real$gender);
 airbnbTrain_df_real$signup_method = as.factor(airbnbTrain_df_real$signup_method);
-airbnbTrain_df_real$ageBins = as.factor(airbnbTrain_df_real$language);
+airbnbTrain_df_real$ageBins = as.factor(airbnbTrain_df_real$ageBins);
 airbnbTrain_df_real$affiliate_channel = factor(airbnbTrain_df_real$affiliate_channel)
 airbnbTrain_df_real$affiliate_provider = factor(airbnbTrain_df_real$affiliate_provider)
 airbnbTrain_df_real$first_affiliate_tracked = factor(airbnbTrain_df_real$first_affiliate_tracked)
 airbnbTrain_df_real$first_device_type = factor(airbnbTrain_df_real$first_device_type)
-
-airbnbTrain_df$signup_app = factor(airbnbTrain_df_real$signup_app)
+airbnbTrain_df_real$signup_app = factor(airbnbTrain_df_real$signup_app)
 airbnbTrain_df_real$first_browser = factor(airbnbTrain_df_real$first_browser)
 airbnbTrain_df_real$ageBins = as.factor(airbnbTrain_df_real$ageBins);
 airbnbTrain_df_real$yearAccountCreated = as.factor(airbnbTrain_df_real$yearAccountCreated);
@@ -455,7 +513,7 @@ airbnbTrain_df_real$weekdayAccountCreated = as.factor(airbnbTrain_df_real$weekda
 airbnbTrain_df_real$weekdayFirstBooking = as.factor(airbnbTrain_df_real$weekdayFirstBooking);
 airbnbTrain_df_real$diffDaysAccountFirstActive = as.factor(airbnbTrain_df_real$diffDaysAccountFirstActive);
 airbnbTrain_df_real$country_destination = as.factor(airbnbTrain_df_real$country_destination);
-
+airbnbTrain_df_real$language = as.factor(airbnbTrain_df_real$language);
 
 #---convertingthe the test to factor---
 airbnbTest_df$gender = as.factor(airbnbTest_df$gender);
@@ -477,7 +535,7 @@ airbnbTest_df$weekdayFirstBooking = as.factor(airbnbTest_df$weekdayFirstBooking)
 
 
 airbnbTest_df$diffDaysAccountFirstActive = as.factor(airbnbTrain_df$diffDaysAccountFirstActive);
-
+airbnbTest_df$language = as.factor(airbnbTest_df$language);
 #--------------------------------------------------------------------------------------------
 #-----------------------------handling missing data------------------------------------------
 #--------------------------------------------------------------------------------------------
@@ -493,23 +551,551 @@ PlotMissing(airbnbTrain_df_real_hotdeck);
 #-----------------------------barplots of data------------------------------------------
 #--------------------------------------------------------------------------------------------
 
-ggplot(airbnbTrain_df_real,aes(x=firs, fill=country_destination))+
-  geom_bar(position = "dodge")
+#------------date first booking---------------
+ggplot(airbnbTrain_df_real, aes(date_first_booking, fill = country_destination) ) +
+  geom_bar(position = "fill")
 
-ggplot(airbnbTrain_df_real,aes(x=gender, fill=country_destination))+
-  geom_bar()
+#changing dataset to fir without NA in date first booking
+summary(airbnbTrain_df_real_hotdeck$country_destination)
+summary(airbnbTrain_df_real$country_destination)
 
-#-------------------correlations----------------------------
+airbnbTrain_df_real_hotdeck_booking = airbnbTrain_df_real_hotdeck[!is.na(airbnbTrain_df_real_hotdeck$date_first_booking),]
+airbnbTrain_df_real_booking= airbnbTrain_df_real[!is.na(airbnbTrain_df_real$date_first_booking),]
 
-varset1 = c("country_destination","signup_app", "first_device_type", "affiliate_provider", "signup_flow")
-airbnbTrain_df1 = subset(airbnbTrain_df_real, select = varset1)
-GKmatrix1 = GKtauDataframe(airbnbTrain_df1)
+summary(airbnbTrain_df_real_hotdeck_booking$country_destination)
+summary(airbnbTrain_df_real_booking$country_destination)
+
+#-----------age bins---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(ageBins, fill = country_destination) )+
+        geom_bar(position = "fill") +ggtitle("regular")
+        
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(ageBins, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------gender---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(gender, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(gender, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------yearAccountCreated---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(yearAccountCreated, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(yearAccountCreated, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------monthAccountCreated---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(monthAccountCreated, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(monthAccountCreated, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------weekdayAccountCreated ---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(weekdayAccountCreated, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(weekdayAccountCreated, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+
+#-----------yearFirstBooking---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(yearFirstBooking, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(yearFirstBooking, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------monthFirstBooking---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(monthFirstBooking, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(monthFirstBooking, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------weekdayFirstBooking---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(weekdayFirstBooking, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(weekdayFirstBooking, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------diffDaysAccountFirstActive ---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(diffDaysAccountFirstActive , fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(diffDaysAccountFirstActive , fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+
+#-----------diffDaysBookingFirstActive ---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(diffDaysBookingFirstActive, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(diffDaysBookingFirstActive, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------signup_method---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(signup_method, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(signup_method, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------signup_flow---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(signup_flow, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(signup_flow, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------signup_app---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(signup_app, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(signup_app, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------first_device_type---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(first_device_type, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(first_device_type, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------affiliate_channel---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(affiliate_channel, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(affiliate_channel, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------affiliate_provider---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(affiliate_provider, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(affiliate_provider, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------first_affiliate_tracked---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(first_affiliate_tracked, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(first_affiliate_tracked, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------first_browser---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(first_browser, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(first_browser, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------language---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(language, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(language, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+
+
+#-----------account_created_distance_US_toHoliday---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(account_created_distance_US_toHoliday, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(account_created_distance_US_toHoliday, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#-----------first_booking_distance_US_toHoliday---------------
+
+ggplot(airbnbTrain_df_real_booking, aes(first_booking_distance_US_toHoliday, fill = country_destination) )+
+  geom_bar(position = "fill") +ggtitle("regular")
+
+
+ggplot(airbnbTrain_df_real_hotdeck_booking, aes(first_booking_distance_US_toHoliday, fill = country_destination) ) +
+  geom_bar(position = "fill") +ggtitle("hotdeck")
+
+
+#----------------------------------------------------------------------------------------------
+#------------------------------------correlations----------------------------------------------
+#----------------------------------------------------------------------------------------------
+
+PlotMissing(airbnbTrain_df_real_booking);
+PlotMissing(airbnbTrain_df_real_hotdeck_booking);
+
+#changing NA to "NA"
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(affiliate_provider), affiliate_provider:="NA"];
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(first_device_type), first_device_type:="NA"];
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(first_affiliate_tracked), first_affiliate_tracked:="NA"];
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(affiliate_channel), affiliate_channel:="NA"];
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(first_browser), first_browser:="NA"];
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(ageBins), ageBins:="NA"];
+airbnbTrain_df_real_booking = airbnbTrain_df_real_booking[is.na(gender), gender:="NA"];
+
+#refactoring
+airbnbTrain_df_real_booking$country_destination= factor(airbnbTrain_df_real_booking$country_destination)
+airbnbTrain_df_real_booking$affiliate_provider= factor(airbnbTrain_df_real_booking$affiliate_provider)
+airbnbTrain_df_real_booking$first_browser= factor(airbnbTrain_df_real_booking$first_browser)
+
+airbnbTrain_df_real_hotdeck_booking$country_destination= factor(airbnbTrain_df_real_hotdeck_booking$country_destination)
+airbnbTrain_df_real_hotdeck_booking$affiliate_provider= factor(airbnbTrain_df_real_hotdeck_booking$affiliate_provider)
+airbnbTrain_df_real_hotdeck_booking$first_browser= factor(airbnbTrain_df_real_hotdeck_booking$first_browser)
+
+
+varset1 = c("country_destination",
+            "gender","ageBins","signup_method","signup_flow",
+            "language","affiliate_channel", "affiliate_provider",
+            "first_affiliate_tracked","signup_app","first_device_type",
+            "first_browser", "first_booking_distance_US_toHoliday",
+            "account_created_distance_US_toHoliday","yearAccountCreated",                   
+            "monthAccountCreated","weekdayAccountCreated","yearFirstBooking",                    
+            "monthFirstBooking","weekdayFirstBooking",
+            "diffDaysAccountFirstActive","diffDaysBookingFirstActive");
+
+#regular dataset
+airbnbTrain_corrdf_booking = subset(airbnbTrain_df_real_booking, select = varset1)
+GKmatrix1 = GKtauDataframe(airbnbTrain_corrdf_booking)
 plot(GKmatrix1, corrColors = "blue")
+colnames(airbnbTrain_df_real_booking)
 
-varset1 = c("language","gender","country_destination", "ageBins", "account_created_distance_US_toHoliday", "first_booking_distance_US_toHoliday", "monthAccountCreated", "yearAccountCreated", "yearFirstBooking", "monthFirstBooking", "diffDaysAccountFirstActive", "diffDaysBookingFirstActive" )
-airbnbTrain_df1 = subset(airbnbTrain_df_real, select = varset1)
-GKmatrix1 = GKtauDataframe(airbnbTrain_df1)
-plot(GKmatrix1, corrColors = "blue")
+#hotdeck dataset
+airbnbTrain_corrdf_hotdeck = subset(airbnbTrain_df_real_hotdeck_booking, select = varset1)
+GKmatrix2 = GKtauDataframe(airbnbTrain_corrdf_hotdeck)
+plot(GKmatrix2, corrColors = "blue")
+
+
+
+#----------------------------------------------------------------------------------------------
+#------------------------------------modeling----------------------------------------------
+#----------------------------------------------------------------------------------------------
+
+#converting prediction column to 0 for date_first_booking==NA
+airbnbTrain_df_real_booking_NA = airbnbTrain_df_real[is.na(date_first_booking),];
+airbnbTrain_df_real_booking_NA$"prediction_destination"=0;
+
+#-----------Divide the data to a train (70%) and validation (30%)---------------------------
+n = nrow(airbnbTrain_df_real_booking)
+set.seed(1) 
+train = sample(1:n,size =0.7*n,replace = F);
+#regular dataset
+airbnbTrain_df_real_booking_train = airbnbTrain_df_real_booking[train,] 
+airbnbTrain_df_real_booking_validation = airbnbTrain_df_real_booking[-train,] 
+#hotdeck dataset
+airbnbTrain_df_real_hotdeck_booking_train = airbnbTrain_df_real_hotdeck_booking[train,] 
+airbnbTrain_df_real_hotdeck_booking_validation = airbnbTrain_df_real_hotdeck_booking[-train,] 
+
+
+
+#--------------------------------------random forest Regular dataset-------------------------------------------
+
+
+maxRandomForestBookingMTrys = 0;
+maxRandomForestBookingNTree = 0;
+maxRandomForestBookingPredict =0;
+
+
+for (i in 3:10) 
+  {
+  for (j in 10:50) 
+    {
+      print(i)
+      print(j)
+      modelRandom = randomForest(country_destination~ gender+ ageBins+signup_method+signup_flow+
+                                   language + affiliate_channel + affiliate_provider+
+                                   first_affiliate_tracked + signup_app +first_device_type +
+                                   first_browser + first_booking_distance_US_toHoliday +
+                                   account_created_distance_US_toHoliday +yearAccountCreated +                  
+                                   monthAccountCreated + weekdayAccountCreated + yearFirstBooking +                    
+                                   monthFirstBooking + weekdayFirstBooking +
+                                   diffDaysAccountFirstActive +diffDaysBookingFirstActive,
+                                 data=airbnbTrain_df_real_booking_train,mtry=i,ntree=j);
+      
+      prediction = predict(modelRandom, airbnbTrain_df_real_booking_validation, type="class");
+      predTable = table(predictions=prediction, actual=airbnbTrain_df_real_booking_validation$country_destination)
+      #--accuracy matrix
+      
+      if((sum(diag(predTable))/sum(predTable))>maxPredict)
+      {
+        maxRandomForestBookingPredict = sum(diag(predTable))/sum(predTable);
+        maxRandomForestBookingMTrys = i;
+        maxRandomForestBookingNTree = j;
+        maxRandomForestBookingModel = modelRandom;
+      }
+  }
+}
+
+
+modelRandom = randomForest(country_destination~ gender+ ageBins+signup_method+signup_flow+
+                             language + affiliate_channel + affiliate_provider+
+                             first_affiliate_tracked + signup_app +first_device_type +
+                             first_browser + first_booking_distance_US_toHoliday +
+                             account_created_distance_US_toHoliday +yearAccountCreated +                  
+                             monthAccountCreated + weekdayAccountCreated + yearFirstBooking +                    
+                             monthFirstBooking + weekdayFirstBooking +
+                             diffDaysAccountFirstActive +diffDaysBookingFirstActive,
+                           data=airbnbTrain_df_real_booking_train,mtry=3,ntree=50);
+
+prediction = predict(modelRandom, airbnbTrain_df_real_booking_validation, type="class");
+predTable = table(predictions=prediction, actual=airbnbTrain_df_real_booking_validation$country_destination)
+
+#--accuracy matrix
+sum(diag(predTable))/sum(predTable)
+
+importance(modelRandom)
+varImpPlot(modelRandom)
+
+predictionWithProb = predict(modelRandom, airbnbTrain_df_real_booking_validation, type="prob");
+auc = auc(airbnbTrain_df_real_booking_validation$country_destination,predictionWithProb[,2])
+plot(roc(airbnbTrain_df_real_booking_validation$country_destination,predictionWithProb[,2]))
+
+
+
+
+#--------------------------------------random forest hotdeck-------------------------------------------
+
+
+maxRandomForestHotdeckMTrys = 0;
+maxRandomForestHotdeckNTree = 0;
+maxRandomForestHotdeckPredict =0;
+
+for (i in 3:10) 
+{
+  for (j in 10:50) 
+  {
+    print(i)
+    print(j)
+    modelRandomHotdeck = randomForest(country_destination~ gender+ ageBins+signup_method+signup_flow+
+                                 language + affiliate_channel + affiliate_provider+
+                                 first_affiliate_tracked + signup_app +first_device_type +
+                                 first_browser + first_booking_distance_US_toHoliday +
+                                 account_created_distance_US_toHoliday +yearAccountCreated +                  
+                                 monthAccountCreated + weekdayAccountCreated + yearFirstBooking +                    
+                                 monthFirstBooking + weekdayFirstBooking +
+                                 diffDaysAccountFirstActive +diffDaysBookingFirstActive,
+                               data=airbnbTrain_df_real_hotdeck_booking_train,mtry=i,ntree=j);
+    
+    predictionHotdeck = predict(modelRandomHotdeck, airbnbTrain_df_real_hotdeck_booking_validation, type="class");
+    predTableHotdeck = table(predictions=predictionHotdeck, actual=airbnbTrain_df_real_hotdeck_booking_validation$country_destination)
+    #--accuracy matrix
+    
+    if((sum(diag(predTableHotdeck))/sum(predTableHotdeck))>maxRandomForestHotdeckPredict)
+    {
+      maxRandomForestHotdeckPredict = sum(diag(predTableHotdeck))/sum(predTableHotdeck);
+      maxRandomForestHotdeckMTrys = i;
+      maxRandomForestHotdeckNTree = j;
+      maxRandomForestHotdeckModel = mododelelRandomHotdeck;
+    }
+  }
+}
+
+
+modelRandomHotdeck = randomForest(country_destination~ gender+ ageBins+signup_method+signup_flow+
+                                    language + affiliate_channel + affiliate_provider+
+                                    first_affiliate_tracked + signup_app +first_device_type +
+                                    first_browser + first_booking_distance_US_toHoliday +
+                                    account_created_distance_US_toHoliday +yearAccountCreated +                  
+                                    monthAccountCreated + weekdayAccountCreated + yearFirstBooking +                    
+                                    monthFirstBooking + weekdayFirstBooking +
+                                    diffDaysAccountFirstActive +diffDaysBookingFirstActive,
+                                  data=airbnbTrain_df_real_hotdeck_booking_train,mtry=3,ntree=45);
+
+predictionHotdeck = predict(modelRandomHotdeck, airbnbTrain_df_real_hotdeck_booking_validation, type="class");
+predTableHotdeck = table(predictions=predictionHotdeck, actual=airbnbTrain_df_real_hotdeck_booking_validation$country_destination)
+
+maxRandomForestHotdeckModel = modelRandomHotdeck
+
+#--accuracy matrix
+sum(diag(predTableHotdeck))/sum(predTableHotdeck);
+importance(maxRandomForestHotdeckModel)
+varImpPlot(maxRandomForestHotdeckModel)
+
+predictionWithProbHodeck = predict(maxRandomForestHotdeckModel, airbnbTrain_df_real_hotdeck_booking_validation, type="prob");
+auc = auc(airbnbTrain_df_real_hotdeck_booking_validation$country_destination,predictionWithProbHodeck[,2])
+plot(roc(airbnbTrain_df_real_hotdeck_booking_validation$country_destination,predictionWithProbHodeck[,2]))
+
+#-----------------------------------------XGBoost regular data-------------------------------------
+
+
+trainLabelRegularMatrix = recode(airbnbTrain_df_real_booking_train$country_destination,"1"=0,"2"=1)
+validationLabelRegularMatrix = recode(airbnbTrain_df_real_booking_validation$country_destination,"1"=0,"2"=1)
+
+trainRegularDataframeToMatrix = airbnbTrain_df_real_booking_train[,
+       c("gender","ageBins","signup_method","signup_flow","language",
+      "affiliate_channel","affiliate_provider","first_affiliate_tracked",
+      "signup_app","first_device_type","first_browser","yearAccountCreated",
+      "first_booking_distance_US_toHoliday","account_created_distance_US_toHoliday",
+      "monthAccountCreated","weekdayAccountCreated","yearFirstBooking",
+      "monthFirstBooking","weekdayFirstBooking","diffDaysAccountFirstActive",
+      "diffDaysBookingFirstActive")]
+
+validationRegularDataframeToMatrix = airbnbTrain_df_real_booking_validation[,
+      c("gender","ageBins","signup_method","signup_flow",
+        "affiliate_channel","affiliate_provider","first_affiliate_tracked",
+        "signup_app","first_device_type","first_browser","yearAccountCreated",
+        "first_booking_distance_US_toHoliday","account_created_distance_US_toHoliday",
+        "monthAccountCreated","weekdayAccountCreated","yearFirstBooking",
+        "monthFirstBooking","weekdayFirstBooking","diffDaysAccountFirstActive",
+        "diffDaysBookingFirstActive")]
+  
+trainRegularMatrix = data.matrix(trainRegularDataframeToMatrix[,])
+validationRegularMatrix = data.matrix(validationRegularDataframeToMatrix[,])
+
+xgboostTrainRegularModel = xgboost(data = trainRegularMatrix, label = trainLabelRegularMatrix  , max.depth = 9, eta = 1, nthread = 2, nround = 45, objective = "binary:logistic")
+
+predictonXgbRegular = predict(xgboostTrainRegularModel, validationRegularMatrix)
+predictonXgbRegular = as.numeric(predictonXgbRegular > 0.5)
+
+errXgbRegular = mean(predictonXgbRegular != validationLabelRegularMatrix)
+print(errXgbRegular)
+
+
+importance_matrix = xgb.importance(model = xgboostTrainRegularModel)
+print(importance_matrix)
+xgb.plot.importance(importance_matrix = importance_matrix)
+
+
+regularPredictionTable = table(predictions=predictonXgbRegular, actual=validationLabelRegularMatrix)
+
+#--accuracy matrix
+sum(diag(regularPredictionTable))/sum(regularPredictionTable);
+
+auc = auc(validationLabelRegularMatrix,predictonXgbRegular)
+print(auc)
+plot(roc(validationLabelRegularMatrix,predictonXgbRegular))
+
+
+
+
+#-----------------------------------------XGBoost Hotdeck data-------------------------------------
+trainLabelHotdeckMatrix = recode(airbnbTrain_df_real_hotdeck_booking_train$country_destination,"1"=0,"2"=1)
+validationLabelHotdeckMatrix = recode(airbnbTrain_df_real_hotdeck_booking_validation$country_destination,"1"=0,"2"=1)
+
+trainHotdeckDataframeToMatrix = airbnbTrain_df_real_hotdeck_booking_train[,
+                    c("gender","ageBins","signup_method","signup_flow","language",
+                      "affiliate_channel","affiliate_provider","first_affiliate_tracked",
+                      "signup_app","first_device_type","first_browser","yearAccountCreated",
+                      "first_booking_distance_US_toHoliday","account_created_distance_US_toHoliday",
+                      "monthAccountCreated","weekdayAccountCreated","yearFirstBooking",
+                      "monthFirstBooking","weekdayFirstBooking","diffDaysAccountFirstActive",
+                      "diffDaysBookingFirstActive")]
+
+validationHotdeckDataframeToMatrix = airbnbTrain_df_real_hotdeck_booking_validation[,
+                    c("gender","ageBins","signup_method","signup_flow",
+                      "affiliate_channel","affiliate_provider","first_affiliate_tracked",
+                      "signup_app","first_device_type","first_browser","yearAccountCreated",
+                      "first_booking_distance_US_toHoliday","account_created_distance_US_toHoliday",
+                      "monthAccountCreated","weekdayAccountCreated","yearFirstBooking",
+                      "monthFirstBooking","weekdayFirstBooking","diffDaysAccountFirstActive",
+                      "diffDaysBookingFirstActive")]
+
+trainHotdeckMatrix = data.matrix(trainHotdeckDataframeToMatrix[,])
+validationHotdeckMatrix = data.matrix(validationHotdeckDataframeToMatrix[,])
+
+xgboostTrainHotdeckModel = xgboost(data = trainHotdeckMatrix, label = trainLabelHotdeckMatrix  , max.depth = 9, eta = 1, nthread = 2, nround = 45, objective = "binary:logistic")
+
+predictonXgbHotdeck = predict(xgboostTrainHotdeckModel, validationHotdeckMatrix)
+predictonXgbHotdeck = as.numeric(predictonXgbHotdeck > 0.5)
+
+errXgbHotdeck = mean(predictonXgbHotdeck != validationLabelHotdeckMatrix)
+print(errXgbHotdeck)
+
+
+importance_matrix_Hotdeck = xgb.importance(model = xgboostTrainHotdeckModel)
+print(importance_matrix_Hotdeck)
+xgb.plot.importance(importance_matrix = importance_matrix_Hotdeck)
+
+
+hotdeckPredictionTable = table(predictions=predictonXgbHotdeck, actual=validationLabelHotdeckMatrix)
+
+#--accuracy matrix
+sum(diag(hotdeckPredictionTable))/sum(hotdeckPredictionTable);
+
+aucHotdeck = auc(validationLabelRegularMatrix,predictonXgbHotdeck)
+print(aucHotdeck)
+plot(roc(validationLabelHotdeckMatrix,predictonXgbHotdeck))
+
+
+
+
+
+
+model = glm(country_destination ~ ageBins, data = airbnbTrain_df_real_booking_train, family = binomial)
+model
+predict = predict(model, type = 'response')
+table(airbnbTrain_df_real_booking_train$country_destination, predict > 0.5)
+
+ROCRpred = prediction(predict, airbnbTrain_df_real_booking_train$country_destination)
+ROCRperf = performance(ROCRpred, 'tpr','fpr')
+plot(ROCRperf, colorize = TRUE, text.adj = c(-0.2,1.7))
+
+
+
+
+
+
 
 
 #---------replace na with -1 for the multinom -----------------------------------
@@ -528,28 +1114,12 @@ summary(multi_model)
 
 #-------------------------extras-------------------------
 
-plot_correlation(airbnbTrain_df_real , use = "pairwise.complete.obs")
+plot_correlation(airbnbTrain_df_real_booking , use = "pairwise.complete.obs")
 
 colnames(airbnbTrain_df_real)
 
-#-------------------------knn imputation for missing data-------------------------
 
-subset_df = subset(airbnbTrain_df_real[1:50000,])
 
-airbnbTrain_df_real_knnImputation1 = kNN(data = subset_df,
-                                         variable=c("affiliate_channel","first_affiliate_tracked",
-                                                    "affiliate_provider", "first_device_type",
-                                                    "first_browser","age","gender"),
-                                         dist_var = colnames(airbnbTrain_df_real),k=1)
-
-summary(airbnbTrain_df_real_knnImputation3$date_first_booking)
-
-#-----------Divide the data to a train (70%) and validation (30%)---------------------------
-n = nrow(airbnbTrain_df_real)
-set.seed(1) 
-train = sample(1:n,size =0.7*n,replace = F ) 
-airbnbTrain_df_Train_real = airbnbTrain_df[train,] 
-airbnbTrain_df_Valid_real = airbnbTrain_df[-train,] 
 
 
 #------------------Model 2 KNN--------------------------
